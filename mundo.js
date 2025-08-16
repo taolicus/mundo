@@ -18,7 +18,20 @@ function generarNombre() {
   return primeraLetra + segundaLetra + terceraLetra;
 }
 
-const RELACION_HABITANTES = ["familar", "amistad", "colega", "contacto"];
+function calcularDistancia(lugarA, lugarB) {
+  const dx = lugarB.x - lugarA.x;
+  const dy = lugarB.y - lugarA.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+const RELACION_HABITANTES = ["familiar", "amistad", "colega", "contacto"];
+
+const ajustes = {
+  cantLugares: 2,
+  habitantesPorLugar: 1, //numberoAleatorioEntre(10, 30),
+  recursosPorLugar: 1, //numberoAleatorioEntre(2, 6),
+  tamanoDibujo: 40,
+};
 
 class Recurso {
   constructor(nombre, origen) {
@@ -30,10 +43,11 @@ class Recurso {
 }
 
 class Necesidad {
-  constructor(recurso) {
+  constructor(recurso, frecuencia) {
     this.recurso = recurso;
     this.cantidad = 0;
-    // this.frecuencia = 0;
+    this.ultimoConsumo = 0;
+    this.frecuencia = frecuencia;
   }
 }
 
@@ -50,6 +64,7 @@ class Habitante {
     this.nombre = nombre;
     this.edad = 1;
     this.origen = origen;
+    this.vive = true;
     this.necesidades = [];
     this.relaciones = [];
     this.lugar = lugar;
@@ -106,7 +121,7 @@ class Habitante {
   }
 
   generarNecesidad(recursosDisponibles) {
-    const umbral = 25; // % de probabilidad de genearar una nueva necesidad
+    const umbral = 5; // % de probabilidad de genearar una nueva necesidad
     if (numberoAleatorioEntre(1, 100) <= umbral) {
       const recursoAleatorio =
         recursosDisponibles[
@@ -174,10 +189,15 @@ class Lugar {
     this.recursos = [];
     this.habitantes = [];
     this.rutas = [];
+    this.generarRecursos();
+    this.generarHabitantes();
+    this.habitantes.forEach((habitante) => {
+      habitante.generarRelaciones();
+    });
   }
 
   generarRecursos() {
-    const cantidad = numberoAleatorioEntre(2, 6);
+    const cantidad = ajustes.recursosPorLugar;
     for (let i = 0; i < cantidad; i++) {
       const nombre = generarNombre();
       const recurso = new Recurso(nombre, this);
@@ -188,13 +208,11 @@ class Lugar {
   }
 
   generarHabitantes() {
-    // const cantidad = numberoAleatorioEntre(10, 30);
-    const cantidad = 3;
+    const cantidad = ajustes.habitantesPorLugar;
     for (let i = 0; i < cantidad; i++) {
       const nombre = generarNombre();
       const habitante = new Habitante(nombre, this, this);
       // habitante.edad = numberoAleatorioEntre(1, 100);
-      // habitante.generarRelaciones();
       this.habitantes.push(habitante);
     }
   }
@@ -205,8 +223,10 @@ class Mundo {
     this.width = w;
     this.height = h;
     this.lugares = [];
-    this.renderSize = 40;
     this.tick = 0;
+    this.desplazamientos = [];
+    this.dibujoRutas = new Path2D();
+    this.generarLugares();
   }
 
   actualizar() {
@@ -231,10 +251,11 @@ class Mundo {
       });
 
     // calcular desplazamientos
-    this.lugares
+    this.desplazamientos = this.lugares
       .flatMap((lugar) => lugar.habitantes)
-      .filter((habitante) => habitante.enTransito)
-      .forEach((habitante) => habitante.actualizarViaje());
+      .filter((habitante) => habitante.enTransito);
+
+    this.desplazamientos.forEach((habitante) => habitante.actualizarViaje());
   }
 
   dibujar(ctx) {
@@ -243,42 +264,29 @@ class Mundo {
     // Rutas
     ctx.strokeStyle = "#666";
     ctx.lineWidth = 1;
-    for (const lugar of this.lugares) {
-      for (const ruta of lugar.rutas) {
-        ctx.beginPath();
-        ctx.moveTo(lugar.x, lugar.y);
-        ctx.lineTo(ruta.x, ruta.y);
-        ctx.stroke();
-      }
-    }
+    ctx.stroke(this.dibujoRutas);
 
     // Desplazamientos
     ctx.fillStyle = "green";
-    this.lugares
-      .flatMap((lugar) => lugar.habitantes)
-      .filter((habitante) => habitante.enTransito)
-      .forEach((habitante) => {
-        const ruta = habitante.rutaActual;
-        const progreso = habitante.progresoViaje;
+    this.desplazamientos.forEach((habitante) => {
+      const ruta = habitante.rutaActual;
+      const progreso = habitante.progresoViaje;
 
-        const x = ruta.origen.x + (ruta.destino.x - ruta.origen.x) * progreso;
-        const y = ruta.origen.y + (ruta.destino.y - ruta.origen.y) * progreso;
+      const x = ruta.origen.x + (ruta.destino.x - ruta.origen.x) * progreso;
+      const y = ruta.origen.y + (ruta.destino.y - ruta.origen.y) * progreso;
 
-        ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
     // Lugares
     ctx.fillStyle = "#fff";
     for (const lugar of this.lugares) {
       ctx.beginPath();
-      ctx.arc(lugar.x, lugar.y, this.renderSize, 0, Math.PI * 2);
+      ctx.arc(lugar.x, lugar.y, ajustes.tamanoDibujo, 0, Math.PI * 2);
       ctx.fill();
-      ctx.textAlign = "center";
-      ctx.font = this.renderSize * 0.8 + "px 'IBM Plex Mono', sans-serif";
-      ctx.letterSpacing = "2px";
-      ctx.fillText(lugar.nombre, lugar.x, lugar.y + this.renderSize * 2);
+      ctx.fillText(lugar.nombre, lugar.x, lugar.y + ajustes.tamanoDibujo * 2);
     }
   }
 
@@ -290,23 +298,21 @@ class Mundo {
       const lugar = new Lugar(
         generarNombre(),
         numberoAleatorioEntre(
-          this.renderSize,
-          this.width - this.renderSize * 2
+          ajustes.tamanoDibujo,
+          this.width - ajustes.tamanoDibujo * 2
         ),
         numberoAleatorioEntre(
-          this.renderSize,
-          this.height - this.renderSize * 2
+          ajustes.tamanoDibujo,
+          this.height - ajustes.tamanoDibujo * 2
         )
       );
 
       const demasiadoCerca = this.lugares.some(
         (lugarExistente) =>
-          this.calcularDistancia(lugar, lugarExistente) < distanciaMinima
+          calcularDistancia(lugar, lugarExistente) < distanciaMinima
       );
 
       if (!demasiadoCerca || this.lugares.length === 0) {
-        lugar.generarRecursos();
-        lugar.generarHabitantes();
         this.lugares.push(lugar);
         return;
       }
@@ -315,22 +321,15 @@ class Mundo {
     }
   }
 
-  calcularDistancia(lugarA, lugarB) {
-    const dx = lugarB.x - lugarA.x;
-    const dy = lugarB.y - lugarA.y;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
   generarRutas(distanciaMaxima = 600) {
     for (let i = 0; i < this.lugares.length; i++) {
       for (let j = i + 1; j < this.lugares.length; j++) {
-        const distancia = this.calcularDistancia(
-          this.lugares[i],
-          this.lugares[j]
-        );
+        const distancia = calcularDistancia(this.lugares[i], this.lugares[j]);
         if (distancia <= distanciaMaxima) {
           this.lugares[i].rutas.push(this.lugares[j]);
           this.lugares[j].rutas.push(this.lugares[i]);
+          this.dibujoRutas.moveTo(this.lugares[i].x, this.lugares[i].y);
+          this.dibujoRutas.lineTo(this.lugares[j].x, this.lugares[j].y);
         }
       }
     }
@@ -341,11 +340,18 @@ class Mundo {
       const distancia = Math.sqrt(
         Math.pow(x - lugar.x, 2) + Math.pow(y - lugar.y, 2)
       );
-      if (distancia <= this.renderSize) {
+      if (distancia <= ajustes.tamanoDibujo) {
         return lugar;
       }
     }
     return null;
+  }
+
+  generarLugares() {
+    for (let i = 0; i < ajustes.cantLugares; i++) {
+      this.agregarLugar();
+    }
+    this.generarRutas();
   }
 }
 
@@ -363,12 +369,11 @@ canvas.width = width * dpr;
 canvas.height = height * dpr;
 
 const ctx = canvas.getContext("2d");
+ctx.textAlign = "center";
+ctx.font = ajustes.tamanoDibujo * 0.8 + "px 'IBM Plex Mono', sans-serif";
+ctx.letterSpacing = "2px";
 
 const mundo = new Mundo(canvas.width, canvas.height);
-for (let i = 0; i < 6; i++) {
-  mundo.agregarLugar();
-}
-mundo.generarRutas();
 mundo.dibujar(ctx);
 
 canvas.addEventListener("click", (event) => {
