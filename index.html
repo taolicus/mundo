@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="#" type="image/x-icon" />
+    <title>Mundo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@200&display=swap"
+      rel="stylesheet"
+    />
+    <script src="./mundo.js" type="module" defer></script>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: black;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        border: solid red 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <button id="tick">Tick</button>
+  </body>
+</html>
