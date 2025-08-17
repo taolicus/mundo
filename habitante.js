@@ -37,7 +37,6 @@ export class Habitante {
     this.progresoViaje = 0;
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
-    // generar necesidades basicas
     this.generarNecesidadesBasicas();
   }
 
@@ -114,8 +113,6 @@ export class Habitante {
     this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
     this.ruta.agregarViajante(this);
     this.lugar = null;
-
-    // Calcular tiempo de viaje basado en distancia (10px por tick)
     this.tiempoViajeTotal = this.ruta.tiempoViaje;
     this.tiempoViajeTranscurrido = 0;
     this.progresoViaje = 0;
