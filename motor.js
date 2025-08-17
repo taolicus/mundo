@@ -38,8 +38,8 @@ const tickBtn = document.getElementById("tick");
 const pauseBtn = document.getElementById("pause");
 const playBtn = document.getElementById("play");
 
-const fps = 20;
-const frameDuration = 1000 / fps;
+const fps = 30;
+const frameDuration = 2000 / fps;
 let lastTime;
 let accumulator = 0;
 let animationId;
