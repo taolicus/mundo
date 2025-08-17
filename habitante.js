@@ -130,7 +130,7 @@ export class Habitante {
     if (this.rutaActual) {
       this.viajar();
     } else {
-      if (this.lugar.rutas.length > 0 && umbral(0.05)) {
+      if (this.lugar.rutas.length > 0 && umbral(0.001)) {
         const destino = elementoAleatorio(this.lugar.rutas).destino;
         this.iniciarViaje(destino);
       }
