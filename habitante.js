@@ -8,9 +8,9 @@ import {
 const RELACION_HABITANTES = ["familiar", "amistad", "colega", "contacto"];
 
 class Necesidad {
-  constructor(recurso, frecuencia = 0) {
+  constructor(recurso, cantidad, frecuencia = 0) {
     this.recurso = recurso;
-    this.cantidad = numberoAleatorioEntre(1, 5);
+    this.cantidad = cantidad;
     this.ultimoConsumo = 0;
     this.frecuencia = frecuencia;
   }
@@ -37,6 +37,13 @@ export class Habitante {
     this.progresoViaje = 0;
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
+    // generar necesidades basicas
+    this.generarNecesidadesBasicas();
+  }
+
+  consumir(recurso, cantidad) {
+    recurso.cantidad -= cantidad;
+    if (recurso.cantidad < 0) recurso.cantidad = 0;
   }
 
   agregarRelacion(habitante, tipo, intensidad) {
@@ -85,6 +92,23 @@ export class Habitante {
     }
   }
 
+  generarNecesidadesBasicas() {
+    let recursosDisponibles = [...this.lugar.recursos];
+    for (let i = 0; i < numberoAleatorioEntre(1, 3); i++) {
+      const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
+      if (!recursoSeleccionado) break;
+      recursosDisponibles = recursosDisponibles.filter(
+        (recurso) => recurso !== recursoSeleccionado
+      );
+      const necesidad = new Necesidad(
+        recursoSeleccionado,
+        numberoAleatorioEntre(1, 5),
+        numberoAleatorioEntre(1, 6)
+      );
+      this.necesidades.push(necesidad);
+    }
+  }
+
   iniciarViaje(ruta) {
     this.ruta = ruta;
     this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
@@ -115,13 +139,32 @@ export class Habitante {
   }
 
   actualizar() {
-    if (this.ruta) {
-      this.viajar();
-    } else {
-      if (this.lugar.rutas.length > 0 && umbral(0.001)) {
-        const ruta = elementoAleatorio(this.lugar.rutas);
-        this.iniciarViaje(ruta);
+    // if (this.ruta) {
+    //   this.viajar();
+    // } else {
+    //   if (this.lugar.rutas.length > 0 && umbral(0.001)) {
+    //     const ruta = elementoAleatorio(this.lugar.rutas);
+    //     this.iniciarViaje(ruta);
+    //   }
+    // }
+    this.necesidades.forEach((necesidad) => {
+      necesidad.ultimoConsumo++;
+      if (necesidad.ultimoConsumo > necesidad.frecuencia) {
+        // log(
+        //   `${this.nombre} (${this.lugar.nombre}) necesita consumir ${necesidad.recurso.nombre}`
+        // );
+        if (necesidad.recurso.cantidad > 0) {
+          this.consumir(necesidad.recurso, necesidad.cantidad);
+          necesidad.ultimoConsumo = 0;
+          log(
+            `${this.nombre} ha consumido ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre}`
+          );
+        } else {
+          log(
+            `${this.nombre} (${this.lugar.nombre}) necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
+          );
+        }
       }
-    }
+    });
   }
 }
