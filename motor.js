@@ -34,10 +34,68 @@ canvas.addEventListener("click", (event) => {
   if (lugar) log(lugar);
 });
 
-function tick() {
-  mundo.actualizar();
-  mundo.dibujar(ctx);
+const fps = 30;
+const frameDuration = 1000 / fps;
+let lastTime;
+let accumulator = 0;
+let animationId;
+let isPaused = true; // Track pause state
+
+function play() {
+  if (isPaused) {
+    lastTime = performance.now();
+    accumulator = 0;
+    isPaused = false;
+    animationId = requestAnimationFrame(loop);
+  }
 }
+
+function pause() {
+  if (!isPaused) {
+    cancelAnimationFrame(animationId);
+    isPaused = true;
+  }
+}
+
+function tick() {
+  if (isPaused) {
+    // Execute exactly one frame's worth of updates
+    mundo.actualizar(frameDuration);
+
+    // Render with alpha = 0 (no interpolation since we're doing exact steps)
+    mundo.dibujar(ctx, 0);
+  }
+}
+
+function loop(currentTime) {
+  // Calculate how much time has passed
+  let deltaTime = currentTime - lastTime;
+  lastTime = currentTime;
+
+  // Avoid spiral of death with large deltaTime
+  if (deltaTime > 1000) deltaTime = frameDuration;
+
+  // Accumulate the time that hasn't been simulated yet
+  accumulator += deltaTime;
+
+  // Simulate the game state in fixed steps
+  while (accumulator >= frameDuration) {
+    mundo.actualizar(frameDuration); // Fixed timestep
+    accumulator -= frameDuration;
+  }
+
+  // Calculate interpolation factor for smooth rendering
+  const alpha = accumulator / frameDuration;
+  mundo.dibujar(ctx, alpha);
+
+  animationId = requestAnimationFrame(loop);
+}
+
+pause();
 
 const tickBtn = document.getElementById("tick");
 tickBtn.addEventListener("click", tick);
+const pauseBtn = document.getElementById("pause");
+pauseBtn.addEventListener("click", pause);
+const playBtn = document.getElementById("play");
+playBtn.addEventListener("click", play);

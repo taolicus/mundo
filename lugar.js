@@ -1,5 +1,10 @@
 import { ajustes } from "./ajustes.js";
-import { numberoAleatorioEntre, generarNombre } from "./funciones.js";
+import {
+  numberoAleatorioEntre,
+  generarNombre,
+  umbral,
+  log,
+} from "./funciones.js";
 import { Habitante } from "./habitante.js";
 
 class Recurso {
@@ -42,11 +47,6 @@ export class Ruta {
       y: this.origen.y + (this.destino.y - this.origen.y) * progreso,
     };
   }
-
-  // Para debugging
-  toString() {
-    return `${this.origen.nombre} → ${this.destino.nombre} (${this.viajantes.length} viajantes)`;
-  }
 }
 
 export class Lugar {
@@ -84,5 +84,15 @@ export class Lugar {
 
   actualizar() {
     this.habitantes.forEach((habitante) => habitante.actualizar());
+    // producir recursos nuevos
+    this.recursos.forEach((recurso) => {
+      if (umbral(0.1)) {
+        const cantidad = numberoAleatorioEntre(1, 10);
+        recurso.cantidad += cantidad;
+        log(
+          `${this.nombre} ha producido ${cantidad} nuevas unidades de ${recurso.nombre}`
+        );
+      }
+    });
   }
 }
