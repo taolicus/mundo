@@ -34,7 +34,11 @@ canvas.addEventListener("click", (event) => {
   if (lugar) log(lugar);
 });
 
-const fps = 30;
+const tickBtn = document.getElementById("tick");
+const pauseBtn = document.getElementById("pause");
+const playBtn = document.getElementById("play");
+
+const fps = 20;
 const frameDuration = 1000 / fps;
 let lastTime;
 let accumulator = 0;
@@ -47,6 +51,7 @@ function play() {
     accumulator = 0;
     isPaused = false;
     animationId = requestAnimationFrame(loop);
+    tickBtn.disabled = true;
   }
 }
 
@@ -54,6 +59,7 @@ function pause() {
   if (!isPaused) {
     cancelAnimationFrame(animationId);
     isPaused = true;
+    tickBtn.disabled = false;
   }
 }
 
@@ -93,9 +99,6 @@ function loop(currentTime) {
 
 pause();
 
-const tickBtn = document.getElementById("tick");
 tickBtn.addEventListener("click", tick);
-const pauseBtn = document.getElementById("pause");
 pauseBtn.addEventListener("click", pause);
-const playBtn = document.getElementById("play");
 playBtn.addEventListener("click", play);

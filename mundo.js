@@ -103,7 +103,7 @@ export class Mundo {
     ctx.stroke(this.dibujoRutas);
 
     // Viajantes
-    ctx.fillStyle = "green";
+    ctx.fillStyle = "#0f0";
     this.viajantes.forEach((viajante) => {
       const posicion = viajante.ruta.obtenerPosicionEnRuta(
         viajante.progresoViaje
