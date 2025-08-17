@@ -5,7 +5,7 @@ import {
   calcularDistancia,
   log,
 } from "./funciones.js";
-import { Lugar } from "./lugar.js";
+import { Lugar, Ruta } from "./lugar.js";
 
 export class Mundo {
   constructor(w, h) {
@@ -54,14 +54,10 @@ export class Mundo {
       for (let j = i + 1; j < this.lugares.length; j++) {
         const distancia = calcularDistancia(this.lugares[i], this.lugares[j]);
         if (distancia <= distanciaMaxima) {
-          this.lugares[i].rutas.push({
-            destino: this.lugares[j],
-            viajantes: [],
-          });
-          this.lugares[j].rutas.push({
-            destino: this.lugares[i],
-            viajantes: [],
-          });
+          const rutaA = new Ruta(this.lugares[i], this.lugares[j]);
+          const rutaB = new Ruta(this.lugares[j], this.lugares[i]);
+          this.lugares[i].rutas.push(rutaA);
+          this.lugares[j].rutas.push(rutaB);
           this.dibujoRutas.moveTo(this.lugares[i].x, this.lugares[i].y);
           this.dibujoRutas.lineTo(this.lugares[j].x, this.lugares[j].y);
         }
@@ -109,14 +105,11 @@ export class Mundo {
     // Viajantes
     ctx.fillStyle = "green";
     this.viajantes.forEach((viajante) => {
-      const ruta = viajante.rutaActual;
-      const progreso = viajante.progresoViaje;
-
-      const x = ruta.origen.x + (ruta.destino.x - ruta.origen.x) * progreso;
-      const y = ruta.origen.y + (ruta.destino.y - ruta.origen.y) * progreso;
-
+      const posicion = viajante.ruta.obtenerPosicionEnRuta(
+        viajante.progresoViaje
+      );
       ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.arc(posicion.x, posicion.y, 5, 0, Math.PI * 2);
       ctx.fill();
     });
 

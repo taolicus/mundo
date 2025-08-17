@@ -11,6 +11,44 @@ class Recurso {
   }
 }
 
+export class Ruta {
+  constructor(origen, destino) {
+    this.origen = origen;
+    this.destino = destino;
+    this.viajantes = [];
+    this.distancia = this.calcularDistancia();
+    this.tiempoViaje = Math.max(1, Math.floor(this.distancia / 10));
+  }
+
+  calcularDistancia() {
+    const dx = this.destino.x - this.origen.x;
+    const dy = this.destino.y - this.origen.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  agregarViajante(habitante) {
+    if (!this.viajantes.includes(habitante)) {
+      this.viajantes.push(habitante);
+    }
+  }
+
+  removerViajante(habitante) {
+    this.viajantes = this.viajantes.filter((v) => v !== habitante);
+  }
+
+  obtenerPosicionEnRuta(progreso) {
+    return {
+      x: this.origen.x + (this.destino.x - this.origen.x) * progreso,
+      y: this.origen.y + (this.destino.y - this.origen.y) * progreso,
+    };
+  }
+
+  // Para debugging
+  toString() {
+    return `${this.origen.nombre} → ${this.destino.nombre} (${this.viajantes.length} viajantes)`;
+  }
+}
+
 export class Lugar {
   constructor(nombre, x, y) {
     this.nombre = nombre;
