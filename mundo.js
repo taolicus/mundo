@@ -13,7 +13,7 @@ export class Mundo {
     this.height = h;
     this.lugares = [];
     this.tick = 0;
-    this.viajes = [];
+    this.viajantes = [];
     this.dibujoRutas = new Path2D();
     this.generarLugares();
   }
@@ -54,8 +54,14 @@ export class Mundo {
       for (let j = i + 1; j < this.lugares.length; j++) {
         const distancia = calcularDistancia(this.lugares[i], this.lugares[j]);
         if (distancia <= distanciaMaxima) {
-          this.lugares[i].rutas.push(this.lugares[j]);
-          this.lugares[j].rutas.push(this.lugares[i]);
+          this.lugares[i].rutas.push({
+            destino: this.lugares[j],
+            viajantes: [],
+          });
+          this.lugares[j].rutas.push({
+            destino: this.lugares[i],
+            viajantes: [],
+          });
           this.dibujoRutas.moveTo(this.lugares[i].x, this.lugares[i].y);
           this.dibujoRutas.lineTo(this.lugares[j].x, this.lugares[j].y);
         }
@@ -77,17 +83,19 @@ export class Mundo {
     this.lugares.forEach((lugar) => lugar.actualizar());
 
     // Generar necesidades
-    const recursos = this.lugares.flatMap((lugar) => lugar.recursos);
-    this.lugares
-      .flatMap((lugar) => lugar.habitantes)
-      .forEach((habitante) => {
-        habitante.generarNecesidad(recursos);
-      });
+    // const recursos = this.lugares.flatMap((lugar) => lugar.recursos);
+    // this.lugares
+    //   .flatMap((lugar) => lugar.habitantes)
+    //   .forEach((habitante) => {
+    //     habitante.generarNecesidad(recursos);
+    //   });
 
     // Calcular viajes
-    this.viajes = this.lugares
-      .flatMap((lugar) => lugar.habitantes)
-      .filter((habitante) => habitante.enTransito);
+    this.viajantes.forEach((viajante) => viajante.actualizar());
+
+    this.viajantes = this.lugares
+      .flatMap((lugar) => lugar.rutas)
+      .flatMap((ruta) => ruta.viajantes);
   }
 
   dibujar(ctx) {
@@ -98,11 +106,11 @@ export class Mundo {
     ctx.lineWidth = 1;
     ctx.stroke(this.dibujoRutas);
 
-    // Viajes
+    // Viajantes
     ctx.fillStyle = "green";
-    this.viajes.forEach((habitante) => {
-      const ruta = habitante.rutaActual;
-      const progreso = habitante.progresoViaje;
+    this.viajantes.forEach((viajante) => {
+      const ruta = viajante.rutaActual;
+      const progreso = viajante.progresoViaje;
 
       const x = ruta.origen.x + (ruta.destino.x - ruta.origen.x) * progreso;
       const y = ruta.origen.y + (ruta.destino.y - ruta.origen.y) * progreso;

@@ -33,7 +33,6 @@ export class Habitante {
     this.necesidades = [];
     this.relaciones = [];
     this.lugar = lugar;
-    this.enTransito = false;
     this.rutaActual = null;
     this.progresoViaje = 0;
     this.tiempoViajeTotal = 0;
@@ -87,48 +86,52 @@ export class Habitante {
   }
 
   iniciarViaje(destino) {
-    if (this.enTransito) return false;
-
-    this.enTransito = true;
-    this.destino = destino;
     this.rutaActual = {
       origen: this.lugar,
       destino: destino,
     };
+    this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
+    this.lugar.rutas
+      .find((ruta) => ruta.destino === this.rutaActual.destino)
+      .viajantes.push(this);
+    this.lugar = null;
 
     // Calcular tiempo de viaje basado en distancia (10px por tick)
     const distancia = Math.sqrt(
-      Math.pow(destino.x - this.lugar.x, 2) +
-        Math.pow(destino.y - this.lugar.y, 2)
+      Math.pow(destino.x - this.rutaActual.origen.x, 2) +
+        Math.pow(destino.y - this.rutaActual.origen.y, 2)
     );
     this.tiempoViajeTotal = Math.max(1, Math.floor(distancia / 10));
     this.tiempoViajeTranscurrido = 0;
     this.progresoViaje = 0;
-
-    return true;
+    log(
+      `${this.nombre} ha iniciado un viaje desde ${this.rutaActual.origen.nombre} hacia ${this.rutaActual.destino.nombre}`
+    );
   }
 
   viajar() {
     this.tiempoViajeTranscurrido++;
     this.progresoViaje = this.tiempoViajeTranscurrido / this.tiempoViajeTotal;
     if (this.tiempoViajeTranscurrido >= this.tiempoViajeTotal) {
-      // Llegó al destino
-      this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
-      this.lugar = this.destino;
+      const ruta = this.rutaActual.origen.rutas.find(
+        (ruta) => ruta.destino === this.rutaActual.destino
+      );
+      ruta.viajantes = ruta.viajantes.filter((v) => v !== this);
+      this.lugar = this.rutaActual.destino;
       this.lugar.habitantes.push(this);
-      this.enTransito = false;
+      log(
+        `${this.nombre} ha llegado a ${this.rutaActual.destino.nombre} desde ${this.rutaActual.origen.nombre}`
+      );
       this.rutaActual = null;
-      return true; // Viaje completado
     }
-    return false; // Todavía en camino
   }
 
   actualizar() {
-    if (this.enTransito) {
+    if (this.rutaActual) {
       this.viajar();
     } else {
       if (this.lugar.rutas.length > 0 && umbral(0.05)) {
-        const destino = elementoAleatorio(this.lugar.rutas);
+        const destino = elementoAleatorio(this.lugar.rutas).destino;
         this.iniciarViaje(destino);
       }
     }

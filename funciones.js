@@ -40,8 +40,8 @@ export function indiceAleatorio(coleccion) {
   return Math.floor(Math.random() * coleccion.length);
 }
 
-export function elementoAleatorio(collecion) {
-  return collecion[indiceAleatorio(collecion)];
+export function elementoAleatorio(coleccion) {
+  return coleccion[indiceAleatorio(coleccion)];
 }
 
 export function umbral(porcentaje) {
