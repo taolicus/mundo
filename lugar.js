@@ -54,6 +54,7 @@ export class Lugar {
     this.nombre = nombre;
     this.x = x;
     this.y = y;
+    this.temperatura = 0;
     this.recursos = [];
     this.habitantes = [];
     this.rutas = [];
@@ -82,7 +83,26 @@ export class Lugar {
     }
   }
 
-  actualizar() {
+  calcularTemperatura(t, yEcuador = 500) {
+    const diaActual = t / ajustes.horasDia;
+
+    const distanciaEcuador = Math.abs(yEcuador - this.y);
+    const tempBase =
+      ajustes.TEMP_MAX_BASE - distanciaEcuador * ajustes.ENFRIAMIENTO_Y;
+
+    const variacionAnual =
+      Math.sin((2 * Math.PI * diaActual) / ajustes.diasEnAnio) *
+      ajustes.AMPLITUD_ANUAL;
+
+    const variacionDiaria =
+      Math.sin((2 * Math.PI * (t - 6)) / ajustes.horasDia) *
+      ajustes.AMPLITUD_DIARIA;
+
+    this.temperatura = tempBase + variacionAnual + variacionDiaria;
+  }
+
+  actualizar(t) {
+    this.calcularTemperatura(t);
     this.habitantes.forEach((habitante) => habitante.actualizar());
     // producir recursos nuevos
     this.recursos.forEach((recurso) => {

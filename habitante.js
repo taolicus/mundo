@@ -1,3 +1,4 @@
+import { ajustes } from "./ajustes.js";
 import {
   numberoAleatorioEntre,
   elementoAleatorio,
@@ -93,7 +94,7 @@ export class Habitante {
 
   generarNecesidadesBasicas() {
     let recursosDisponibles = [...this.lugar.recursos];
-    for (let i = 0; i < numberoAleatorioEntre(1, 1); i++) {
+    for (let i = 0; i < ajustes.necesidadesPorHabitante; i++) {
       const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
       if (!recursoSeleccionado) break;
       recursosDisponibles = recursosDisponibles.filter(

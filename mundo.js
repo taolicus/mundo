@@ -76,7 +76,7 @@ export class Mundo {
     this.tick++;
     log("T:", this.tick);
 
-    this.lugares.forEach((lugar) => lugar.actualizar());
+    this.lugares.forEach((lugar) => lugar.actualizar(this.tick));
 
     // Generar necesidades
     // const recursos = this.lugares.flatMap((lugar) => lugar.recursos);
@@ -94,7 +94,7 @@ export class Mundo {
       .flatMap((ruta) => ruta.viajantes);
   }
 
-  dibujar(ctx) {
+  dibujar(ctx, alpha) {
     ctx.clearRect(0, 0, this.width, this.height);
 
     // Rutas
@@ -105,11 +105,24 @@ export class Mundo {
     // Viajantes
     ctx.fillStyle = "#0f0";
     this.viajantes.forEach((viajante) => {
-      const posicion = viajante.ruta.obtenerPosicionEnRuta(
-        viajante.progresoViaje
+      const progresoActual = viajante.progresoViaje;
+      const progresoSiguiente = Math.min(
+        1,
+        (viajante.tiempoViajeTranscurrido + 1) / viajante.tiempoViajeTotal
       );
+
+      const posicionActual =
+        viajante.ruta.obtenerPosicionEnRuta(progresoActual);
+      const posicionSiguiente =
+        viajante.ruta.obtenerPosicionEnRuta(progresoSiguiente);
+
+      const posicionInterpoladaX =
+        posicionActual.x + (posicionSiguiente.x - posicionActual.x) * alpha;
+      const posicionInterpoladaY =
+        posicionActual.y + (posicionSiguiente.y - posicionActual.y) * alpha;
+
       ctx.beginPath();
-      ctx.arc(posicion.x, posicion.y, 5, 0, Math.PI * 2);
+      ctx.arc(posicionInterpoladaX, posicionInterpoladaY, 5, 0, Math.PI * 2);
       ctx.fill();
     });
 
