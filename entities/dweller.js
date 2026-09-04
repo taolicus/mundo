@@ -219,36 +219,10 @@ export class Dweller {
     }
   }
 
-  startTravel(route, reason) {
-    this.route = route;
-    this.activity = reason;
-    this.place.habitants = this.place.habitants.filter((h) => h !== this);
-    this.route.addTraveler(this);
-    this.place = null;
-    this.totalTravelTime = this.route.travelTime;
-    this.elapsedTravelTime = 0;
-    this.travelProgress = 0;
-    log(
-      `${this.name} left ${this.route.origin.name} to ${reason}`
-    );
-  }
-
-  travel() {
-    this.elapsedTravelTime++;
-    this.travelProgress = this.elapsedTravelTime / this.totalTravelTime;
-    if (this.elapsedTravelTime >= this.totalTravelTime) {
-      this.route.removeTraveler(this);
-      this.place = this.route.destination;
-      this.place.habitants.push(this);
-      this.learnPlace(this.place);
-      this.needs = [];
-      this.generateNeeds();
-      log(
-        `${this.name} arrived in ${this.route.destination.name}`
-      );
-      this.route = null;
-      this.activity = "resting";
-    }
+  onArrival(destination) {
+    this.learnPlace(destination);
+    this.needs = [];
+    this.generateNeeds();
   }
 
   update(t) {
@@ -269,7 +243,7 @@ export class Dweller {
     }
 
     if (this.route) {
-      this.travel();
+      travelBehaviour.step(this);
     } else if (this.place) {
       this.decideBehaviour();
     }

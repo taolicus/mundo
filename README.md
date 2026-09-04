@@ -62,8 +62,8 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` gathers intents and dispatches to the behaviour registry.
 - ✅ **Weighted urgency competition done.** Each need reports an `urgency(dweller)`; `decideBehaviour` weighted-picks among all pressing needs' intents. Survival ramps its urgency while a shortage persists and multiplies it by `survivalWeight:3` — heavily weighted but *competitive* (validated: urgency 1.0 → survival wins ~75%, urgency 0.5 → ~60%, urgency 2.0 → ~85%; below `behaviourThreshold` no trip). An intent that loses competition is *not* reset, so it stays pending.
 - **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
+- ✅ **Traversal mechanics refactor done.** `start`/`step` (depart, advance progress, arrive) moved out of `Dweller` into `core/behaviours/travel.js`; `travel.perform` delegates to `start`. `Dweller` keeps only travel *state* (`route`/`travelProgress`/`elapsedTravelTime`/`totalTravelTime`) plus an `onArrival(destination)` lifecycle hook (learn place + regenerate needs).
 - **Next (planned):**
-  - **Traversal mechanics refactor** — move `startTravel`/`travel`/`travelProgress`/route traversal out of `Dweller` into the travel behaviour (currently still on `Dweller`).
   - **More behaviours** — add production/gathering later, plugging into the same interface.
 
 ### Module: Needs (generalize)
