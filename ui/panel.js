@@ -114,6 +114,7 @@ function renderDweller(dweller) {
     `DWELLER · ${dweller.name}`,
     back +
       row("age", dweller.age) +
+      row("activity", dweller.activity || "resting") +
       row("place", dweller.place ? dweller.place.name : "traveling") +
       (needs
         ? "<br><span style='color:#888'>needs</span><br>" + needs

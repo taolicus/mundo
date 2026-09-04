@@ -38,6 +38,8 @@ export function drawWorld(ctx, world, alpha, routesDrawing) {
   ctx.stroke(routesDrawing);
 
   ctx.fillStyle = "#0f0";
+  ctx.font = "10px 'IBM Plex Mono', sans-serif";
+  ctx.textAlign = "center";
   world.getTravelersInTransit().forEach((traveler) => {
     const currentProgress = traveler.travelProgress;
     const nextProgress = Math.min(
@@ -58,6 +60,15 @@ export function drawWorld(ctx, world, alpha, routesDrawing) {
     ctx.beginPath();
     ctx.arc(interpX, interpY, 5, 0, Math.PI * 2);
     ctx.fill();
+
+    if (traveler.activity) {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      const label = (traveler.activity + "").replace(/^seeking /, "→ ");
+      const w = ctx.measureText(label).width + 8;
+      ctx.fillRect(interpX - w / 2, interpY - 24, w, 14);
+      ctx.fillStyle = "#8f8";
+      ctx.fillText(label, interpX, interpY - 13);
+    }
   });
 
   for (const place of world.places) {
