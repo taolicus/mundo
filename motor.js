@@ -1,7 +1,7 @@
 import { obtenerLugar } from "./funciones.js";
 import { ajustes } from "./ajustes.js";
 import { Mundo } from "./mundo.js";
-import { mostrarLugar, actualizarPanel } from "./panel.js";
+import { mostrarLugar, actualizarPanel, ocultarPanel } from "./panel.js";
 
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");
@@ -42,6 +42,8 @@ canvas.addEventListener("click", (event) => {
 
   if (lugar) {
     mostrarLugar(lugar);
+  } else {
+    ocultarPanel();
   }
 });
 

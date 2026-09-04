@@ -19,6 +19,8 @@ function ocultarPanel() {
   seleccionActual = null;
 }
 
+export { ocultarPanel };
+
 function actualizarPanel() {
   if (seleccionActual) {
     if (seleccionActual.tipo === "lugar") renderLugar(seleccionActual.lugar);
@@ -84,6 +86,7 @@ function renderLugar(lugar) {
   panelBody.querySelectorAll(".hab-link").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
+      e.stopPropagation();
       const h = lugar.habitantes.find((hab) => hab.nombre === a.dataset.hab);
       if (h) mostrarHabitante(h);
     });
@@ -131,6 +134,7 @@ function renderHabitante(habitante) {
   if (back) {
     back.addEventListener("click", (e) => {
       e.preventDefault();
+      e.stopPropagation();
       if (volverLugar) mostrarLugar(volverLugar);
     });
   }
