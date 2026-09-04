@@ -1,6 +1,7 @@
 import { obtenerLugar } from "./funciones.js";
 import { ajustes } from "./ajustes.js";
 import { Mundo } from "./mundo.js";
+import { dibujarMundo, construirRutasPath } from "./render.js";
 import { mostrarLugar, actualizarPanel, ocultarPanel } from "./panel.js";
 
 const dpr = window.devicePixelRatio || 1;
@@ -8,6 +9,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 let mundo;
+let dibujoRutas;
 
 function resize() {
   const w = window.innerWidth;
@@ -26,11 +28,12 @@ function resize() {
 resize();
 
 mundo = new Mundo(canvas.width, canvas.height);
-mundo.dibujar(ctx);
+dibujoRutas = construirRutasPath(mundo);
+dibujarMundo(ctx, mundo, 0, dibujoRutas);
 
 window.addEventListener("resize", () => {
   resize();
-  mundo.dibujar(ctx, 0);
+  dibujarMundo(ctx, mundo, 0, dibujoRutas);
 });
 
 canvas.addEventListener("click", (event) => {
@@ -104,7 +107,7 @@ function pause() {
 function tick() {
   if (isPaused) {
     mundo.actualizar();
-    mundo.dibujar(ctx, 0);
+    dibujarMundo(ctx, mundo, 0, dibujoRutas);
     actualizarStats();
     actualizarPanel();
   }
@@ -124,7 +127,7 @@ function loop(currentTime) {
   }
 
   const alpha = accumulator / frameDuration;
-  mundo.dibujar(ctx, alpha);
+  dibujarMundo(ctx, mundo, alpha, dibujoRutas);
   actualizarStats();
   actualizarPanel();
 
