@@ -178,6 +178,10 @@ Kept here for future reference and to keep the sim's claims honest. Broad stroke
 - **Death beyond removal:** no funerals, mourning, or knowledge inheritance; the dead simply leave the lists.
 - **Experience/aging nuance:** no meaningful life stages beyond the mobility/curiosity curves; no risk assessment or strategic reasoning.
 
+## Parking lot (future ideas, not started)
+
+- **Cooking.** Dwellers eat raw food by default, but sometimes they *want* to cook. They can craft recipes, tweak them, share recipes with one another, and must gather the ingredients first. (Carries real weight for the honesty inventory: it will introduce a kitchen/logistics loop, rudimentary "technology" in the form of recipes, and recipe knowledge that propagates — sizable, and deliberately not yet attempted.)
+
 ## Repository / sharing notes
 
 This README is the reference context for a fresh LLM session. On starting work, read it plus the module files, then run a syntax check and a quick `World`-construction smoke test (see prior session practice: `node --check <file>` for each module, plus instantiating `World` with node to confirm the module graph resolves).
