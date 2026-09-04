@@ -38,9 +38,7 @@ export const settings = {
   unmetNeedDamage: 3,
   ticksPerYear: 8640,
 
-  birthProb: 0.02,
-  reproductionAge: 18,
-  birthStockRatio: 0.6,
+  birthRate: 0.001,
   maxDwellersPerPlace: 60,
 
   exploreProb: 0.002,

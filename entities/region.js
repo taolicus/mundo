@@ -126,21 +126,9 @@ export class Region {
     return 1 + (this.temperature - settings.optimalTemp) * settings.temperatureSensitivity;
   }
 
-  hasOrganicSurplus() {
-    return this.resources.some(
-      (r) => r.type === "organic" && r.amount > r.capacity * settings.birthStockRatio
-    );
-  }
-
   attemptBirth(t) {
     if (this.habitants.length >= settings.maxDwellersPerPlace) return;
-    if (this.habitants.length === 0) return;
-    if (!this.hasOrganicSurplus()) return;
-
-    const hasAdult = this.habitants.some((h) => h.age >= settings.reproductionAge);
-    if (!hasAdult) return;
-
-    if (!chance(settings.birthProb)) return;
+    if (!chance(settings.birthRate)) return;
 
     const baby = newDweller(this, t);
     this.habitants.push(baby);

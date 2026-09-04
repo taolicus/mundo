@@ -51,8 +51,7 @@ canvas.addEventListener("click", (event) => {
 });
 
 const tickBtn = document.getElementById("tick");
-const pauseBtn = document.getElementById("pause");
-const playBtn = document.getElementById("play");
+const toggleBtn = document.getElementById("toggle");
 
 const statTick = document.getElementById("statTick");
 const statPopulation = document.getElementById("statPopulation");
@@ -71,28 +70,26 @@ const frameDuration = 1000 / settings.fps;
 let lastTime;
 let accumulator = 0;
 let animationId;
-let isPaused = true;
+let isRunning = false;
 
-function play() {
-  if (isPaused) {
+function toggle() {
+  if (isRunning) {
+    cancelAnimationFrame(animationId);
+    isRunning = false;
+    tickBtn.disabled = false;
+    toggleBtn.textContent = "Play";
+  } else {
     lastTime = performance.now();
     accumulator = 0;
-    isPaused = false;
+    isRunning = true;
     animationId = requestAnimationFrame(loop);
     tickBtn.disabled = true;
-  }
-}
-
-function pause() {
-  if (!isPaused) {
-    cancelAnimationFrame(animationId);
-    isPaused = true;
-    tickBtn.disabled = false;
+    toggleBtn.textContent = "Pause";
   }
 }
 
 function tick() {
-  if (isPaused) {
+  if (!isRunning) {
     world.update();
     drawWorld(ctx, world, 0, routesDrawing);
     updateStats();
@@ -121,8 +118,5 @@ function loop(currentTime) {
   animationId = requestAnimationFrame(loop);
 }
 
-pause();
-
 tickBtn.addEventListener("click", tick);
-pauseBtn.addEventListener("click", pause);
-playBtn.addEventListener("click", play);
+toggleBtn.addEventListener("click", toggle);
