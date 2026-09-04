@@ -53,15 +53,15 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - A **World** is a set of **Regions** connected by **Routes**.
 - Each **Region** has **Resources** that regenerate naturally over time by `genRate` (temperature does not currently affect production).
 - Each **Dweller** has typed **Needs** (behavioral drivers). **survival** needs target resources it *knows* and that exist locally (only `organic` type is consumed); unmet survival needs drain health, and zero health dies of malnutrition. Each dweller also has an **exploration** need that drives periodic travel to unvisited places. Dwellers age and die.
-- Dwellers **travel** along routes when a known survival need has no local supply but a known supplier elsewhere, or when the **exploration** need fires (preferring unvisited destinations).
+- Dwellers **travel** along routes as a *behaviour* driven by needs: a **survival** need (travels to seek a resource it knows exists elsewhere) or the **exploration** need (travels out of curiosity, preferring unvisited places). Each travel carries a **reason** shown in the log (`Sah left Kal to seeking Nwo` / `...to out of curiosity`), providing a minimal narrative read.
 - **Births** use a flat rate (`settings.birthRate` chance per region per tick), capped per region by `settings.maxDwellersPerPlace`.
 
 ## Work checklist
 
 ### Module: Behavior (core rework)
-- Introduce a **behavior module** with a standard, simple interface for defining new behaviors.
-- Move **travel** and **production** (renamed from "work") into it. Future behaviors plug into the same interface.
-- Currently no behavior module exists; travel/work logic is inline in `Dweller`.
+- ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` picks survival-first and dispatches to the behaviour registry.
+- **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
+- **Next:** weighted urgency competition among needs (survival heavily weighted but competitive); move more traversal mechanics out of `Dweller`; add production/gathering as behaviours later. Traversal mechanics (startTravel/travel/travelProgress) still live on `Dweller` for now.
 
 ### Module: Needs (generalize)
 - ✅ **Partially done.** `Need` is now a typed **behavioral driver** (`need.type`): **survival** (consume known local resource) and **exploration** (periodic drive to visit unvisited places) are implemented. `collection`/`social` are reserved type strings, not yet built.
