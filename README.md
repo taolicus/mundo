@@ -12,22 +12,41 @@ We deliberately keep systems small and honest. Features only earn their complexi
 - **Natural generation for now.** Resources currently generate naturally by their generation rate; dweller-driven production was removed and will be revisited as a behavior.
 - **Keep modules acyclic and single-purpose.** `world → region → dweller` stays as the core dependency spine.
 
-## Current architecture
+## Target architecture — layers
+
+The project is reorganizing into three top-level directories by *concern* (layers, not feature-per-directory — intentional, since simulation is cross-cutting):
 
 ```
-index.html     — HTML shell: canvas + top bar (day, population) + inspection panel
-engine.js      — game loop (fixed timestep @ 30fps), play/pause/tick, click-to-inspect, stats
-world.js       — World: places, routes, the global tick, travel-in-transit query
-region.js      — Region, Resource, Route (resources, production, temperature, births)
-dweller.js     — Dweller, Need, Relation (age, health, needs, knowledge, travel)
-population.js  — Population: initial population of places + newDweller factory
-render.js      — canvas rendering (place color by temperature, routes, travelers)
-panel.js       — inspection view (place / dweller), back-navigation, live updates
-utils.js       — pure helpers (randomness, names, distance, weighted pick)
-settings.js    — centralized simulation parameters
+core/            — pure simulation + shared infra. NO DOM. Node-testable.
+  settings.js    — centralized config
+  utils.js       — pure helpers (randomness, names, distance, weighted pick)
+  events.js      — pub/sub event bus (thin)
+  logging.js     — consumes events, behind a feature flag
+  engine.js      — THE engine. Owns time/tick. Drives world.update(tick).
+                   Pure JS; orchestrates the UI as a component, does not call RAF.
+entities/        — the nouns; owned/managed by core engine
+  world.js       — World entity: holds regions/dwellers/travelers; calls each entity's
+                   update(tick). Has NO loop of its own.
+  region.js      — Region, Resource, Route
+  dweller.js     — Dweller, Need
+  population.js  — Population (aggregate/statistics)
+ui/              — browser concerns (canvas/DOM). The only layer touching browser APIs.
+  index.html     — shell: canvas + top bar (day, population) + inspection panel
+  styles.css
+  app.js         — browser adapter: owns RAF, canvas, DOM/input/stats.
+                   Calls engine.advance() each frame and renders on demand.
+  render.js      — canvas drawing
+  panel.js       — inspection panel
 ```
 
-Note: several file names now lag the intended module vision (see checklist). The internal terminology is also in transition — `habitants` (array property) will become `population`, etc.
+### Locked-in boundary decisions
+
+- **Engine owns time.** `core/engine.js` holds the `tick` counter and decides pacing (fixed timestep); it passes `tick` into `world.update(tick)`. World is a passive state holder that calls its entities' update methods — it has no loop.
+- **Engine owns UI (orchestration); UI owns RAF (mechanism).** Core engine is pure JS and drives the UI as a component (decides when/what to show + pace). The `ui` layer is the browser adapter and is the *only* place that calls browser APIs (RAF, canvas, DOM). The UI's RAF loop calls `engine.advance()`, and core decides how many sim ticks to run. This keeps core testable and UI a thin adapter.
+- **Import graph is one-way:** `ui → core → entities`, never the reverse.
+- **`habitants` array property** will be renamed to `population` as part of the terminology transition.
+
+> Note: as of this writing the flat files have not yet been moved into these dirs; this section is the target the cleanup step works toward.
 
 ## Current behavior
 
