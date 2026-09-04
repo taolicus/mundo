@@ -14,6 +14,7 @@ class Necesidad {
     this.cantidad = cantidad;
     this.ultimoConsumo = 0;
     this.frecuencia = frecuencia;
+    this.annunciadaFalta = false;
   }
 }
 
@@ -42,12 +43,29 @@ export class Habitante {
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
     this.trabajo = null;
+    this.conocimiento = new Set();
+    this.proveedores = new Map();
     this.habilidad = numberoAleatorioEntre(ajustes.habilidadMin, ajustes.habilidadMax) / ajustes.habilidadDivisor;
+    if (lugar) this.aprenderLugar(lugar);
     this.generarNecesidadesBasicas();
   }
 
   proxCumpleanios() {
     return numberoAleatorioEntre(0, ajustes.tickPorAnio);
+  }
+
+  aprenderLugar(lugar) {
+    for (const recurso of lugar.recursos) {
+      this.conocimiento.add(recurso.nombre);
+      if (!this.proveedores.has(recurso.nombre)) {
+        this.proveedores.set(recurso.nombre, new Set());
+      }
+      this.proveedores.get(recurso.nombre).add(lugar);
+    }
+  }
+
+  conoce(nombre) {
+    return this.conocimiento.has(nombre);
   }
 
   agregarRelacion(habitante, tipo, intensidad) {
@@ -83,25 +101,18 @@ export class Habitante {
     }
   }
 
-  generarNecesidad(recursos) {
-    if (umbral(ajustes.probNecesidad)) {
-      const recurso = elementoAleatorio(recursos);
-      const necesidad = new Necesidad(recurso);
-      this.necesidades.push(necesidad);
-      log(
-        `${this.nombre} (${this.lugar.nombre}) necesita ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre} (${necesidad.recurso.origen.nombre})`
-      );
-    }
-  }
-
-  recursosComestibles() {
+  recursosComestiblesLocales() {
     if (!this.lugar) return [];
     return this.lugar.recursos.filter((r) => r.tipo === "organico");
   }
 
+  recursosConocidosComestiblesLocales() {
+    return this.recursosComestiblesLocales().filter((r) => this.conoce(r.nombre));
+  }
+
   generarNecesidadesBasicas() {
     if (!this.lugar) return;
-    let recursosDisponibles = [...this.recursosComestibles()];
+    let recursosDisponibles = [...this.recursosConocidosComestiblesLocales()];
     const cantidad = numberoAleatorioEntre(ajustes.necesidadesPorHabitanteMin, ajustes.necesidadesPorHabitanteMax);
     for (let i = 0; i < cantidad; i++) {
       const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
@@ -118,11 +129,53 @@ export class Habitante {
     }
   }
 
+  necesitaSatisfacerLocalmente(necesidad) {
+    return (
+      necesidad.recurso.cantidad > 0 ||
+      this.lugar.recursos.some(
+        (r) => r.nombre === necesidad.recurso.nombre && r.cantidad > 0
+      )
+    );
+  }
+
+  elegirRutaPorNecesidad() {
+    if (!this.lugar || !this.lugar.rutas || this.lugar.rutas.length === 0) return null;
+
+    const provistosLocalmente = new Set(
+      this.lugar.recursos.filter((r) => r.cantidad > 0).map((r) => r.nombre)
+    );
+
+    for (const necesidad of this.necesidades) {
+      const nombre = necesidad.recurso.nombre;
+      if (provistosLocalmente.has(nombre)) continue;
+      if (!this.proveedores.has(nombre)) continue;
+
+      const proveedores = this.proveedores.get(nombre);
+      for (const ruta of this.lugar.rutas) {
+        if (proveedores.has(ruta.destino) && ruta.destino !== this.lugar) {
+          return ruta;
+        }
+      }
+    }
+    return null;
+  }
+
   asignarTrabajo() {
     if (!this.lugar || this.lugar.recursos.length === 0) return;
     if (this.trabajo && umbral(ajustes.probRetenerTrabajo)) return;
 
-    const recurso = elementoAleatorio(this.lugar.recursos);
+    const necesidadesConocidas = new Set(
+      this.necesidades.map((n) => n.recurso.nombre)
+    );
+
+    const preferidos = this.lugar.recursos.filter((r) =>
+      necesidadesConocidas.has(r.nombre)
+    );
+
+    const recurso = preferidos.length > 0
+      ? elementoAleatorio(preferidos)
+      : elementoAleatorio(this.lugar.recursos);
+
     this.trabajo = recurso;
     log(`${this.nombre} ha sido asignado a trabajar en ${recurso.nombre}`);
   }
@@ -173,6 +226,7 @@ export class Habitante {
       this.ruta.removerViajante(this);
       this.lugar = this.ruta.destino;
       this.lugar.habitantes.push(this);
+      this.aprenderLugar(this.lugar);
       this.necesidades = [];
       this.generarNecesidadesBasicas();
       this.asignarTrabajo();
@@ -197,18 +251,30 @@ export class Habitante {
       this.necesidades.forEach((necesidad) => {
         necesidad.ultimoConsumo++;
         if (necesidad.ultimoConsumo > necesidad.frecuencia) {
-          if (necesidad.recurso.cantidad > 0) {
-            this.lugar.consumirRecurso(necesidad.recurso, necesidad.cantidad);
+          const disponibleLocalmente = this.lugar.recursos.find(
+            (r) => r.nombre === necesidad.recurso.nombre && r.cantidad > 0
+          );
+          if (disponibleLocalmente) {
+            this.lugar.consumirRecurso(disponibleLocalmente, necesidad.cantidad);
             necesidad.ultimoConsumo = 0;
+            if (necesidad.annunciadaFalta) {
+              log(
+                `${this.lugar.nombre} vuelve a satisfacer ${necesidad.recurso.nombre}`
+              );
+              necesidad.annunciadaFalta = false;
+            }
             log(
               `${this.nombre} ha consumido ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre}`
             );
           } else {
             this.salud -= ajustes.danyoNecesidadInsatisfecha;
             necesidad.ultimoConsumo = 0;
-            log(
-              `${this.lugar.nombre} necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
-            );
+            if (!necesidad.annunciadaFalta) {
+              log(
+                `${this.lugar.nombre} necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
+              );
+              necesidad.annunciadaFalta = true;
+            }
           }
         }
       });
@@ -222,7 +288,14 @@ export class Habitante {
     if (this.ruta) {
       this.viajar();
     } else if (this.lugar) {
-      if (this.lugar.rutas && this.lugar.rutas.length > 0 && umbral(ajustes.probViajar)) {
+      const rutaPorNecesidad = this.elegirRutaPorNecesidad();
+      if (rutaPorNecesidad) {
+        this.iniciarViaje(rutaPorNecesidad);
+      } else if (
+        this.lugar.rutas &&
+        this.lugar.rutas.length > 0 &&
+        umbral(ajustes.probExplorar)
+      ) {
         const ruta = elementoAleatorio(this.lugar.rutas);
         this.iniciarViaje(ruta);
       }

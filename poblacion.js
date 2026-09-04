@@ -9,8 +9,7 @@ export function poblarLugares(lugares) {
       ajustes.habitantesPorLugarMax
     );
     for (let i = 0; i < cantidad; i++) {
-      const nombre = generarNombre();
-      lugar.habitantes.push(new Habitante(nombre, lugar, lugar));
+      lugar.habitantes.push(nuevoHabitante(lugar, 0));
     }
   });
 
@@ -20,4 +19,9 @@ export function poblarLugares(lugares) {
       habitante.asignarTrabajo();
     });
   });
+}
+
+export function nuevoHabitante(lugar, tick) {
+  const nombre = generarNombre();
+  return new Habitante(nombre, lugar, lugar, tick);
 }

@@ -7,6 +7,7 @@ import {
   umbral,
   log,
 } from "./funciones.js";
+import { nuevoHabitante } from "./poblacion.js";
 
 function seleccionarTipo() {
   const tipos = ajustes.tiposRecurso;
@@ -160,6 +161,28 @@ export class Lugar {
     }
   }
 
+  tieneSuperavitOrganico() {
+    return this.recursos.some(
+      (r) => r.tipo === "organico" && r.cantidad > r.capacidad * ajustes.stockNacimientoRatio
+    );
+  }
+
+  intentarReproduccion(t) {
+    if (this.habitantes.length >= ajustes.poblacionMaxLugar) return;
+    if (this.habitantes.length === 0) return;
+    if (!this.tieneSuperavitOrganico()) return;
+
+    const hayAdulto = this.habitantes.some((h) => h.edad >= ajustes.edadReproduccion);
+    if (!hayAdulto) return;
+
+    if (!umbral(ajustes.probNacimiento)) return;
+
+    const bebe = nuevoHabitante(this, t);
+    this.habitantes.push(bebe);
+    bebe.asignarTrabajo();
+    log(`👶 ${bebe.nombre} ha nacido en ${this.nombre}`);
+  }
+
   actualizar(t) {
     this.calcularTemperatura(t);
     this.recursos.forEach((recurso) => {
@@ -181,5 +204,6 @@ export class Lugar {
       }
     });
     this.intentarDescubrimiento(t);
+    this.intentarReproduccion(t);
   }
 }
