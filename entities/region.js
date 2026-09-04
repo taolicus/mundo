@@ -49,10 +49,12 @@ export class Route {
 }
 
 export class Region {
-  constructor(name, x, y, catalog, tick = 0) {
+  constructor(name, x, y, catalog, tick = 0, env = {}) {
     this.name = name;
     this.x = x;
     this.y = y;
+    this.equatorY = env.equatorY ?? settings.equatorY;
+    this.yCooling = env.yCooling ?? settings.yCooling;
     this.climate = new Climate(this);
     this.resources = [];
     this.population = [];

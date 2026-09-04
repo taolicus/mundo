@@ -31,6 +31,10 @@ export class World {
   }
 
   generatePlaces() {
+    const equatorY = Math.round(this.height * settings.equatorFrac);
+    const yCooling =
+      settings.tempBaseMax / Math.max(1, equatorY - settings.drawSize);
+
     for (let i = 0; i < settings.placeCount; i++) {
       let attempts = 0;
       while (attempts < settings.maxPlacementAttempts) {
@@ -44,7 +48,9 @@ export class World {
             settings.drawSize,
             this.height - settings.drawSize * 2
           ),
-          this.catalog
+          this.catalog,
+          0,
+          { equatorY, yCooling }
         );
 
         const tooClose = this.places.some(

@@ -13,8 +13,10 @@ export class Climate {
   calculateTemperature(t) {
     const day = t / settings.hoursPerDay;
 
-    const distEquator = Math.abs(settings.equatorY - this.region.y);
-    const base = settings.tempBaseMax - distEquator * settings.yCooling;
+    const equatorY = this.region.equatorY ?? settings.equatorY;
+    const yCooling = this.region.yCooling ?? settings.yCooling;
+    const distEquator = Math.abs(equatorY - this.region.y);
+    const base = settings.tempBaseMax - distEquator * yCooling;
 
     const annual =
       Math.sin((2 * Math.PI * day) / settings.daysPerYear) *

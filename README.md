@@ -86,7 +86,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ### Module: Environment (extract + simplify) — ✅ done
 - A separate **environment module** exists: `core/environment.js` (`Climate`) owns temperature per region; `Region` delegates (`region.climate.update(t)`), exposing temperature via a getter for UI coloring/display only.
 - **The temperature-sensitive resource multiplier is removed** — regions produce resources purely by `genRate`. Temperature is now a cosmetic readout (region color + panel), decoupled from simulation outcomes.
-- Cleaned up associated dead settings (`resourcesPerPlaceMin/Max`, `temperatureSensitivity`, `optimalTemp`, `temperatureSensitivityProb`, `sensitivityByType`); added `equatorY` to configure the climate baseline.
+- Cleaned up associated dead settings (`resourcesPerPlaceMin/Max`, `temperatureSensitivity`, `optimalTemp`, `temperatureSensitivityProb`, `sensitivityByType`). `Climate` was re-anchored to the **world boundaries**: instead of a fixed `equatorY` pixel, `World.generatePlaces` derives `equatorY = height × equatorFrac` (0.6) and `yCooling = tempBaseMax / (equatorY − drawSize)`, so base temperature spans 0 °C at the top edge → `tempBaseMax` at the equator no matter the canvas size or device-pixel ratio (previously a tall phone canvas froze solid below y≈500 and a desktop went uniformly mild). `Region`/`Climate` accept the profile via constructor env; standalone `Climate({ y })` falls back to the old `settings.equatorY`/`yCooling`.
 - Extendable to weather/seasons later by growing `Climate`.
 
 ### Births: simple rate on Population

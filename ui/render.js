@@ -13,21 +13,43 @@ export function buildRoutesPath(world) {
 }
 
 function tempColor(temp) {
-  let r, g, b;
+  const stops = [
+    [-1, [255, 255, 255]],
+    [0, [170, 210, 255]],
+    [1, [64, 142, 76]],
+    [2, [170, 135, 70]],
+    [3, [224, 94, 44]],
+  ];
+
+  const coldWidth =
+    settings.mildTempMax - settings.coldTempMax;
+  const extremeCold = settings.coldTempMax - coldWidth;
+
+  let at;
   if (temp <= settings.coldTempMax) {
-    r = 255; g = 255; b = 255;
+    at = (temp - extremeCold) / (settings.coldTempMax - extremeCold) - 1;
   } else if (temp <= settings.mildTempMax) {
-    const t = (temp - settings.coldTempMax) / (settings.mildTempMax - settings.coldTempMax);
-    r = Math.round(255 + (0 - 255) * t);
-    g = Math.round(255 + (255 - 255) * t);
-    b = Math.round(255 + (0 - 255) * t);
+    at = (temp - settings.coldTempMax) / coldWidth;
   } else {
-    const t = Math.min(1, (temp - settings.mildTempMax) / settings.hotTempRange);
-    r = Math.round(0 + (255 - 0) * t);
-    g = Math.round(255 + (255 - 255) * t);
-    b = Math.round(0 + (0 - 0) * t);
+    at = 1 + ((temp - settings.mildTempMax) / settings.hotTempRange) * 2;
   }
-  return `rgb(${r},${g},${b})`;
+  at = Math.max(-1, Math.min(3, at));
+
+  let lo = stops[0];
+  let hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (at >= stops[i][0] && at <= stops[i + 1][0]) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
+  }
+  const span = hi[0] - lo[0];
+  const t = span === 0 ? 1 : (at - lo[0]) / span;
+  const rgb = lo[1].map((c, i) =>
+    Math.round(c + (hi[1][i] - c) * t)
+  );
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 
 export function drawWorld(ctx, world, alpha, routesDrawing, focus) {

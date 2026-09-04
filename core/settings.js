@@ -7,6 +7,7 @@ export const settings = {
   dailyAmplitude: 5,
   yCooling: 0.05,
   equatorY: 500,
+  equatorFrac: 0.6,
   hoursPerDay: 24,
   daysPerYear: 360,
 
