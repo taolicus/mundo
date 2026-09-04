@@ -16,7 +16,6 @@ export function populatePlaces(places) {
   places.forEach((place) => {
     place.habitants.forEach((dweller) => {
       dweller.generateRelations();
-      dweller.assignJob();
     });
   });
 }

@@ -63,19 +63,15 @@ function renderPlace(place) {
     })
     .join("");
 
-  const workers = place.habitants.filter((h) => h.job).length;
-
   const dwellerList = place.habitants
-    .map((h) => row(dwellerLink(h), h.job ? h.job.name : "no job"))
+    .map((h) => row(dwellerLink(h)))
     .join("");
 
   showPanel(
     `PLACE · ${place.name}`,
     row("temperature", place.temperature.toFixed(1) + "°C") +
       row("dwellers", place.habitants.length) +
-      row("workers", workers) +
       row("resources", place.resources.length) +
-      row("discoveries", place.discoveries.length) +
       "<br><span style='color:#888'>resources</span><br>" +
       resources +
       (dwellerList
@@ -120,8 +116,6 @@ function renderDweller(dweller) {
     back +
       row("age", dweller.age) +
       row("place", dweller.place ? dweller.place.name : "traveling") +
-      row("job", dweller.job ? dweller.job.name : "none") +
-      row("skill", dweller.skill.toFixed(1)) +
       (needs
         ? "<br><span style='color:#888'>needs</span><br>" + needs
         : "") +

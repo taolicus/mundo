@@ -78,7 +78,6 @@ export class Region {
     this.resources = [];
     this.habitants = [];
     this.routes = [];
-    this.discoveries = [];
     this.generateResources();
   }
 
@@ -127,40 +126,6 @@ export class Region {
     return 1 + (this.temperature - settings.optimalTemp) * settings.temperatureSensitivity;
   }
 
-  attemptDiscovery(t) {
-    if (this.resources.length < 2 || !chance(settings.discoveryProb)) return;
-
-    const resA = randomElement(this.resources);
-    const resB = randomElement(this.resources.filter((r) => r !== resA));
-
-    if (!resA || !resB) return;
-
-    const pair = [resA.name, resB.name].sort().join("+");
-    if (this.discoveries.includes(pair)) return;
-
-    if (resA.amount > resA.capacity * settings.discoveryStockThreshold &&
-        resB.amount > resB.capacity * settings.discoveryStockThreshold) {
-      this.discoveries.push(pair);
-
-      const name = generateName();
-      const newRes = new Resource(name, this, t);
-      newRes.weight = Math.floor((resA.weight + resB.weight) / 2);
-      newRes.type = resA.type === resB.type ? resA.type : "hybrid";
-      newRes.genRate = Math.max(1, Math.floor((resA.genRate + resB.genRate) / 2));
-      newRes.capacity = Math.floor((resA.capacity + resB.capacity) / 2);
-      newRes.amount = Math.floor((resA.amount + resB.amount) / 4);
-      newRes.nextProductionTick = t + randomIntBetween(0, newRes.productionInterval);
-
-      resA.amount = Math.floor(resA.amount * (1 - settings.discoveryCost));
-      resB.amount = Math.floor(resB.amount * (1 - settings.discoveryCost));
-
-      this.resources.push(newRes);
-      log(
-        `${this.name} discovered ${name} using ${resA.name} and ${resB.name}`
-      );
-    }
-  }
-
   hasOrganicSurplus() {
     return this.resources.some(
       (r) => r.type === "organic" && r.amount > r.capacity * settings.birthStockRatio
@@ -179,7 +144,6 @@ export class Region {
 
     const baby = newDweller(this, t);
     this.habitants.push(baby);
-    baby.assignJob();
     log(`👶 ${baby.name} was born in ${this.name}`);
   }
 
@@ -190,11 +154,9 @@ export class Region {
       resource.nextProductionTick = t + resource.productionInterval;
 
       const factor = this.temperatureFactor(resource);
-      const workers = this.habitants.filter((h) => h.job === resource);
-      const totalSkill = workers.reduce((sum, h) => sum + h.skill, 0);
       const amount = Math.max(
         0,
-        Math.floor(resource.genRate * factor * (1 + totalSkill * settings.workerContribution))
+        Math.floor(resource.genRate * factor)
       );
       if (amount > 0) {
         this.produceResource(resource, amount);
@@ -203,7 +165,6 @@ export class Region {
         );
       }
     });
-    this.attemptDiscovery(t);
     this.attemptBirth(t);
   }
 }

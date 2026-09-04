@@ -42,10 +42,8 @@ export class Dweller {
     this.travelProgress = 0;
     this.totalTravelTime = 0;
     this.elapsedTravelTime = 0;
-    this.job = null;
     this.knowledge = new Set();
     this.suppliers = new Map();
-    this.skill = randomIntBetween(settings.skillMin, settings.skillMax) / settings.skillDivisor;
     if (place) this.learnPlace(place);
     this.generateBasicNeeds();
   }
@@ -160,26 +158,6 @@ export class Dweller {
     return null;
   }
 
-  assignJob() {
-    if (!this.place || this.place.resources.length === 0) return;
-    if (this.job && chance(settings.retainJobProb)) return;
-
-    const knownNeeds = new Set(
-      this.needs.map((n) => n.resource.name)
-    );
-
-    const preferred = this.place.resources.filter((r) =>
-      knownNeeds.has(r.name)
-    );
-
-    const resource = preferred.length > 0
-      ? randomElement(preferred)
-      : randomElement(this.place.resources);
-
-    this.job = resource;
-    log(`${this.name} assigned to work at ${resource.name}`);
-  }
-
   ageOneYear(t) {
     while (t >= this.nextYear) {
       this.age++;
@@ -207,7 +185,6 @@ export class Dweller {
 
   startTravel(route) {
     this.route = route;
-    this.job = null;
     this.place.habitants = this.place.habitants.filter((h) => h !== this);
     this.route.addTraveler(this);
     this.place = null;
@@ -229,7 +206,6 @@ export class Dweller {
       this.learnPlace(this.place);
       this.needs = [];
       this.generateBasicNeeds();
-      this.assignJob();
       log(
         `${this.name} arrived at ${this.route.destination.name} from ${this.route.origin.name}`
       );

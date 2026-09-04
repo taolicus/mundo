@@ -56,25 +56,13 @@ const playBtn = document.getElementById("play");
 
 const statTick = document.getElementById("statTick");
 const statPopulation = document.getElementById("statPopulation");
-const statResources = document.getElementById("statResources");
-const statDiscoveries = document.getElementById("statDiscoveries");
 
 function updateStats() {
   const population =
     world.places.reduce((sum, p) => sum + p.habitants.length, 0) +
     world.getTravelersInTransit().length;
-  const resources = world.places.reduce(
-    (sum, p) => sum + p.resources.length,
-    0
-  );
-  const discoveries = world.places.reduce(
-    (sum, p) => sum + p.discoveries.length,
-    0
-  );
   statTick.textContent = world.tick;
   statPopulation.textContent = population;
-  statResources.textContent = resources;
-  statDiscoveries.textContent = discoveries;
 }
 
 updateStats();

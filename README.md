@@ -1,62 +1,82 @@
 # Mundo
 
-Un sandbox de exploración de narrativa emergente. Una simulación mínima con lugares, recursos, habitantes, necesidades y relaciones — diseñada para observar cómo reglas simples producen historias, no para modelar la realidad con precisión.
+A sandbox for exploring **emergent narrative**. A minimal simulation of places, resources, dwellers, needs and behavior, designed to observe how simple rules produce stories — not to model reality with precision.
 
-## Arquitectura
+We deliberately keep systems small and honest. Features only earn their complexity once they demonstrably contribute to emergent behavior.
+
+## Intent & design principles
+
+- **Emergent narrative** is the goal: watch simple rules generate interesting, readable stories.
+- **Simplify first, integrate later.** Avoid speculative machinery; build the minimal thing that works and extend only when it earns its place.
+- **Needs drive behavior.** A need is any motivation to act (survive, explore, collect, meet people) — not just eating. Behaviors satisfy needs.
+- **Natural generation for now.** Resources currently generate naturally by their generation rate; dweller-driven production was removed and will be revisited as a behavior.
+- **Keep modules acyclic and single-purpose.** `world → region → dweller` stays as the core dependency spine.
+
+## Current architecture
 
 ```
-index.html   — shell HTML + canvas + panel de inspección
-motor.js     — motor / bucle del juego (timestep, input, stats)
-mundo.js     — estado y dinámica del mundo (lugares, rutas, tick)
-lugar.js     — Lugar, Recurso, Ruta (clima, recursos, descubrimientos)
-habitante.js — Habitante, Necesidad, Relacion (necesidades, trabajo, viajes)
-poblacion.js — generación inicial de habitantes por lugar
-render.js    — renderizado (canvas, color por temperatura, rutas, viajantes)
-panel.js     — vista de inspección (lugar / habitante)
-funciones.js — utilidades puras (aleatoriedad, nombres, distancia)
-ajustes.js   — parámetros de simulación centralizados (fácil de ajustar)
+index.html     — HTML shell: canvas + top bar (day, population) + inspection panel
+engine.js      — game loop (fixed timestep @ 30fps), play/pause/tick, click-to-inspect, stats
+world.js       — World: places, routes, the global tick, travel-in-transit query
+region.js      — Region, Resource, Route (resources, production, temperature, births)
+dweller.js     — Dweller, Need, Relation (age, health, needs, knowledge, travel)
+population.js  — Population: initial population of places + newDweller factory
+render.js      — canvas rendering (place color by temperature, routes, travelers)
+panel.js       — inspection view (place / dweller), back-navigation, live updates
+utils.js       — pure helpers (randomness, names, distance, weighted pick)
+settings.js    — centralized simulation parameters
 ```
 
-## Roadmap
+Note: several file names now lag the intended module vision (see checklist). The internal terminology is also in transition — `habitants` (array property) will become `population`, etc.
 
-### ✅ Fase 1: Tasas de generación y capacidad — implementado
+## Current behavior
 
-`Recurso` tiene `generacionRate`, `capacidad`, `tipo` y `sensibleTemperatura`. La producción respeta la capacidad y los recursos sensibles a temperatura modulan su tasa según la temperatura del lugar.
+- A **World** is a set of **Regions** connected by **Routes**.
+- Each **Region** has **Resources** that regenerate naturally over time by `genRate` (temperature does not currently affect production).
+- Each **Dweller** has **Needs**, generated from resources it *knows* and that exist locally (only `organic` type is consumed). Unmet needs drain health; zero health dies of malnutrition. Dwellers also age and die.
+- Dwellers **travel** along routes for two reasons: a known need with no local supply has a known supplier elsewhere, or random exploration (`exploreProb`).
+- **Births** exist but currently use a surplus/age-gated mechanic that is slated to be replaced.
 
-### ✅ Fase 2: Producción de habitantes — implementado
+## Work checklist
 
-Los habitantes se asignan a un `trabajo` y producen ese recurso según su `habilidad`. La producción de cada recurso es `rate × factorTemperatura × (1 + sumaHabilidades × contribucionTrabajador)`, con un techo de almacenamiento. La asignación de trabajo ocurre inicialmente y al llegar a un lugar.
+### Module: Behavior (core rework)
+- Introduce a **behavior module** with a standard, simple interface for defining new behaviors.
+- Move **travel** and **production** (renamed from "work") into it. Future behaviors plug into the same interface.
+- Currently no behavior module exists; travel/work logic is inline in `Dweller`.
 
-### ✅ Fase 3: Crafting emergente — implementado
+### Module: Needs (generalize)
+- Generalize `Need` from "a resource-consumption timer" into a general **behavioral driver**.
+- Need types: **survival** (consume known local resource), **exploration** (see new places), **collection** (acquire things not held), **social** (meet people).
+- Build the shared structure now; implement **survival + exploration**; leave collection/social as future types.
 
-Cuando un lugar acumula suficiente stock de 2+ recursos, hay una chance de descubrir un recurso nuevo que hereda rasgos de sus componentes (peso promedio, tipo combinado, promedios de tasa y capacidad). Cada descubrimiento se registra como evento narrativo.
+### Module: Environment (extract + simplify)
+- Create a separate **environment module** owning climate (temperature) per region, extendable to weather/seasons later.
+- **Region delegates** temperature to it.
+- **Remove the temperature-sensitive resource multiplier** — regions produce resources purely by `genRate`.
+- Currently temperature lives inline in `Region` and still multiplies production.
 
-### ⬜ Fase 4: Ciclo de vida — siguiente
+### Births: simple rate on Population
+- Birth rate becomes a **flat attribute of the Population module** (not of Dwellers). No gender/demographics yet.
+- Replace the current surplus + adult-age-gated birth mechanic with births generated from that simple rate.
+- Model population dynamics properly later.
 
-Hacer que los habitantes se sientan vivos y que la población sea dinámica:
+### Remove Relations
+- `Relation` is currently unused and not well scoped.
+- Remove it. Rebuild inside the behavior module only when social behavior actually needs it.
 
-- **Envejecimiento** y **muerte**: `edad` avanza con el tick; los habitantes mueren por vejez y por necesidades insatisfechas prolongadas (el campo `vive` aún no se usa).
-- **Nacimiento**: nuevos habitantes aparecen cuando el lugar tiene recursos en superávit.
-- **Población dinámica**: permitir que la población suba y baje según el balance recursos/necesidades.
+### Knowledge / indirect discovery (open thread)
+- Knowledge system stays as-is for now but needs more work.
+- Open problem: knowledge currently *inhibits* travel (you only need what you already have locally). Indirect knowledge — learning of resources/places from other traveled dwellers — is what should genuinely *drive* travel and discovery.
+- Design a natural channel for knowledge to spread between dwellers.
 
-### ⬜ Fase 5: Viaje por necesidad
+### UI (lower priority)
+- A **UI module** would separate rendering of controls/stats/panel from game logic. Not urgent.
+- Change **play/pause** from two buttons to a **single toggle button**.
 
-Hacer que el viaje tenga propósito y no sea puramente aleatorio:
+## Repository / sharing notes
 
-- Los habitantes eligen destinos según sus **necesidades** (recursos que faltan en su lugar, oportunidades de trabajo).
-- Migración entre lugares en respuesta a escasez o abundancia, impulsando narrativas emergentes reales.
+This README is the reference context for a fresh LLM session. On starting work, read it plus the module files, then run a syntax check and a quick `World`-construction smoke test (see prior session practice: `node --check <file>` for each module, plus instantiating `World` with node to confirm the module graph resolves).
 
-### ⬜ Fase 6: Mundo físico
+## Historical roadmap (older phases, kept for reference)
 
-Dar consecuencias tangibles al clima y al terreno:
-
-- **Efectos de temperatura** sobre necesidades (climas fríos requieren más recursos) y sobre el confort/decisiones de los habitantes.
-- **Meteorología**: variable climática regional que perturba temperatura y tasas de recurso.
-- **Especialización de lugares**: no todos pueden producir los mismos tipos (agricultura vs. minería), para incentivar el comercio y el viaje.
-- **Rendimientos decrecientes / agotamiento**: sobre-explotación reduce la capacidad a largo plazo; el abandono permite recuperarla.
-
-### ⬜ Fase 7: Economía (ambicioso)
-
-- **Valor / precio** según escasez, para que el viaje y el intercambio tengan lógica económica.
-- **Relaciones que evolucionan**: la intensidad cambia con la proximidad y las necesidades satisfechas.
-- Preferencia de **trabajo por habilidad** en lugar de asignación aleatoria.
+Features previously explored and since simplified away: a temperature-sensitive resource multiplier, dweller work/production/skill, and emergent crafting ("discoveries") — all removed in favor of the simpler natural-generation model described above.
