@@ -1,10 +1,10 @@
-import { settings } from "./settings.js";
+import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   generateName,
   calculateDistance,
   log,
-} from "./utils.js";
+} from "../core/utils.js";
 import { Region, Route } from "./region.js";
 import { populatePlaces } from "./population.js";
 

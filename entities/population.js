@@ -1,6 +1,6 @@
-import { randomIntBetween, generateName } from "./utils.js";
+import { randomIntBetween, generateName } from "../core/utils.js";
 import { Dweller } from "./dweller.js";
-import { settings } from "./settings.js";
+import { settings } from "../core/settings.js";
 
 export function populatePlaces(places) {
   places.forEach((place) => {

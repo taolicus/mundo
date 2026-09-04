@@ -1,4 +1,4 @@
-import { settings } from "./settings.js";
+import { settings } from "../core/settings.js";
 
 export function buildRoutesPath(world) {
   const path = new Path2D();

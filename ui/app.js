@@ -1,6 +1,6 @@
-import { getRegion } from "./utils.js";
-import { settings } from "./settings.js";
-import { World } from "./world.js";
+import { getRegion } from "../core/utils.js";
+import { settings } from "../core/settings.js";
+import { World } from "../entities/world.js";
 import { drawWorld, buildRoutesPath } from "./render.js";
 import { showPlace, updatePanel, hidePanel } from "./panel.js";
 

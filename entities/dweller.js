@@ -1,10 +1,10 @@
-import { settings } from "./settings.js";
+import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   randomElement,
   chance,
   log,
-} from "./utils.js";
+} from "../core/utils.js";
 
 const RELATION_TYPES = ["family", "friendship", "colleague", "acquaintance"];
 
