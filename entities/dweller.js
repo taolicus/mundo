@@ -8,6 +8,10 @@ import {
 } from "../core/utils.js";
 import { travel as travelBehaviour } from "../core/behaviours/travel.js";
 
+const behaviours = {
+  travel: travelBehaviour,
+};
+
 class Need {
   constructor(type) {
     this.type = type;
@@ -27,6 +31,28 @@ class Need {
   behaviour(dweller) {
     return null;
   }
+
+  reset() {}
+}
+
+class PeriodicNeed extends Need {
+  constructor(type, frequency) {
+    super(type);
+    this.frequency = frequency;
+    this.lastEvent = 0;
+  }
+
+  tick(dweller, t) {
+    this.lastEvent++;
+  }
+
+  urgency(dweller) {
+    return Math.min(1, this.lastEvent / this.frequency);
+  }
+
+  reset() {
+    this.lastEvent = 0;
+  }
 }
 
 class SurvivalNeed extends Need {
@@ -44,28 +70,39 @@ class SurvivalNeed extends Need {
     this.lastConsumption++;
     if (this.lastConsumption <= this.frequency) return;
 
-    const edible = dweller.place.resources.filter(
+    if (this.hasEdibleFood(dweller)) {
+      this.eatBest(dweller);
+    } else {
+      this.goHungry(dweller);
+    }
+  }
+
+  hasEdibleFood(dweller) {
+    return dweller.place.resources.some(
       (r) => r.type === "organic" && r.amount > 0 && dweller.knows(r.name)
     );
-    if (edible.length > 0) {
-      const best = edible.sort(
-        (a, b) => dweller.tasteRank(a.name) - dweller.tasteRank(b.name)
-      )[0];
-      dweller.place.consumeResource(best, this.amount);
-      this.lastConsumption = 0;
-      this.activity = "eating";
-      this.urgencyFrac = 0;
-      this.shortageAnnounced = false;
-    } else {
-      dweller.health -= settings.unmetNeedDamage;
-      this.lastConsumption = 0;
-      this.activity = "hungry";
-      this.urgencyFrac = Math.min(
-        3,
-        this.urgencyFrac + settings.survivalUrgencyRamp
-      );
-      this.shortageAnnounced = true;
-    }
+  }
+
+  eatBest(dweller) {
+    const edible = dweller.place.resources
+      .filter((r) => r.type === "organic" && r.amount > 0 && dweller.knows(r.name))
+      .sort((a, b) => dweller.tasteRank(a.name) - dweller.tasteRank(b.name));
+    dweller.place.consumeResource(edible[0], this.amount);
+    this.lastConsumption = 0;
+    this.activity = "eating";
+    this.urgencyFrac = 0;
+    this.shortageAnnounced = false;
+  }
+
+  goHungry(dweller) {
+    dweller.health -= settings.unmetNeedDamage;
+    this.lastConsumption = 0;
+    this.activity = "hungry";
+    this.urgencyFrac = Math.min(
+      3,
+      this.urgencyFrac + settings.survivalUrgencyRamp
+    );
+    this.shortageAnnounced = true;
   }
 
   urgency(dweller) {
@@ -97,52 +134,35 @@ class SurvivalNeed extends Need {
     if (!dweller.place || !this.shortageAnnounced) return null;
     const foodPlaces = this.knowFoodPlaces(dweller);
     if (foodPlaces.size === 0) return null;
+
+    const reason = this.seekReason(dweller);
+    let bestRoute = null;
+    let bestDistance = Infinity;
     for (const route of dweller.place.routes) {
       if (foodPlaces.has(route.destination)) {
-        return {
-          behaviour: "travel",
-          route,
-          reason: this.seekReason(dweller),
-          need: this,
-        };
+        return { behaviour: "travel", route, reason, need: this };
       }
-    }
-    let bestRoute = null;
-    let bestDist = Infinity;
-    for (const route of dweller.place.routes) {
-      for (const fp of foodPlaces) {
-        const dist = Math.hypot(route.destination.x - fp.x, route.destination.y - fp.y);
-        if (dist < bestDist) {
-          bestDist = dist;
+      for (const foodPlace of foodPlaces) {
+        const dist = Math.hypot(
+          route.destination.x - foodPlace.x,
+          route.destination.y - foodPlace.y
+        );
+        if (dist < bestDistance) {
+          bestDistance = dist;
           bestRoute = route;
         }
       }
     }
     if (bestRoute) {
-      return {
-        behaviour: "travel",
-        route: bestRoute,
-        reason: this.seekReason(dweller),
-        need: this,
-      };
+      return { behaviour: "travel", route: bestRoute, reason, need: this };
     }
     return null;
   }
 }
 
-class ExplorationNeed extends Need {
+class ExplorationNeed extends PeriodicNeed {
   constructor(frequency) {
-    super("exploration");
-    this.frequency = frequency;
-    this.lastExplored = 0;
-  }
-
-  tick(dweller, t) {
-    this.lastExplored++;
-  }
-
-  urgency(dweller) {
-    return Math.min(1, this.lastExplored / this.frequency);
+    super("exploration", frequency);
   }
 
   weight(dweller) {
@@ -155,24 +175,17 @@ class ExplorationNeed extends Need {
     const unvisited = dweller.place.routes.filter(
       (route) => !dweller.visitedPlaceNames.has(route.destination.name)
     );
-    const route = unvisited.length > 0 ? randomElement(unvisited) : randomElement(dweller.place.routes);
+    const route =
+      unvisited.length > 0
+        ? randomElement(unvisited)
+        : randomElement(dweller.place.routes);
     return { behaviour: "travel", route, reason: "out of curiosity", need: this };
   }
 }
 
-class GatherNeed extends Need {
+class GatherNeed extends PeriodicNeed {
   constructor(frequency) {
-    super("gather");
-    this.frequency = frequency;
-    this.lastGather = 0;
-  }
-
-  tick(dweller, t) {
-    this.lastGather++;
-  }
-
-  urgency(dweller) {
-    return Math.min(1, this.lastGather / this.frequency);
+    super("gather", frequency);
   }
 
   weight(dweller) {
@@ -182,26 +195,31 @@ class GatherNeed extends Need {
   behaviour(dweller) {
     if (this.urgency(dweller) < settings.behaviourThreshold) return null;
     if (!dweller.place || dweller.place.routes.length === 0) return null;
+    const target = this.findGatherTarget(dweller);
+    if (!target) return null;
+    return {
+      behaviour: "travel",
+      route: target.route,
+      reason: `to gather ${target.resource.name}`,
+      need: this,
+    };
+  }
+
+  findGatherTarget(dweller) {
     const localNames = new Set(dweller.place.resources.map((r) => r.name));
     const candidates = [];
     for (const route of dweller.place.routes) {
       if (route.destination === dweller.place) continue;
-      const missing = route.destination.resources.find(
+      const resource = route.destination.resources.find(
         (r) =>
           !localNames.has(r.name) &&
           dweller.knows(r.name) &&
           dweller.suppliers.get(r.name)?.has(route.destination)
       );
-      if (missing) candidates.push({ route, resource: missing });
+      if (resource) candidates.push({ route, resource });
     }
     if (candidates.length === 0) return null;
-    const pick = randomElement(candidates);
-    return {
-      behaviour: "travel",
-      route: pick.route,
-      reason: `to gather ${pick.resource.name}`,
-      need: this,
-    };
+    return randomElement(candidates);
   }
 }
 
@@ -215,18 +233,20 @@ export class Dweller {
     this.health = randomIntBetween(settings.initialHealthMin, settings.initialHealthMax);
     this.maxAge = randomIntBetween(settings.maxAgeMin, settings.maxAgeMax);
     this.nextYear = tick + this.nextBirthday();
-    this.needs = [];
-this.route = null;
+
+    this.route = null;
     this.travelProgress = 0;
     this.elapsedTravelTime = 0;
     this.totalTravelTime = 0;
     this.settleTicksRemaining = 0;
-    this.elapsedTravelTime = 0;
+
+    this.needs = [];
     this.knowledge = new Set();
     this.suppliers = new Map();
     this.visitedPlaceNames = new Set();
     this.tastes = this.buildTastes(place);
     this.isCurious = chance(settings.explorationProb);
+
     if (place) this.learnPlace(place);
     this.generateNeeds();
   }
@@ -274,6 +294,13 @@ this.route = null;
     }
   }
 
+  chat() {
+    if (this.place.population.length <= 1) return;
+    if (!chance(settings.gossipProb)) return;
+    const peers = this.place.population.filter((h) => h !== this);
+    this.shareKnowledgeWith(randomElement(peers));
+  }
+
   generateNeeds() {
     if (!this.place) return;
     this.needs.push(
@@ -317,7 +344,7 @@ this.route = null;
     log(`☠ ${this.name} (${this.age} years, ${location}) died of ${cause}`);
 
     if (this.place) {
-      this.place.habitants = this.place.habitants.filter((h) => h !== this);
+      this.place.population = this.place.population.filter((h) => h !== this);
     }
     if (this.route) {
       this.route.removeTraveler(this);
@@ -351,13 +378,7 @@ this.route = null;
     if (this.route) {
       travelBehaviour.step(this);
     } else if (this.place) {
-      if (
-        this.place.habitants.length > 1 &&
-        chance(settings.gossipProb)
-      ) {
-        const peers = this.place.habitants.filter((h) => h !== this);
-        this.shareKnowledgeWith(randomElement(peers));
-      }
+      this.chat();
       this.decideBehaviour();
     }
   }
@@ -377,14 +398,7 @@ this.route = null;
     if (candidates.length === 0) return;
 
     const chosen = weightedPick(candidates);
-    if (chosen.need.type === "exploration") chosen.need.lastExplored = 0;
-    else if (chosen.need.type === "gather") chosen.need.lastGather = 0;
-    switch (chosen.behaviour) {
-      case "travel":
-        travelBehaviour.perform(this, chosen);
-        break;
-      default:
-        break;
-    }
+    chosen.need.reset();
+    behaviours[chosen.behaviour]?.perform(this, chosen);
   }
 }

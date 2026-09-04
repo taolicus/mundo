@@ -59,7 +59,7 @@ const statPopulation = document.getElementById("statPopulation");
 
 function updateStats() {
   const population =
-    world.places.reduce((sum, p) => sum + p.habitants.length, 0) +
+    world.places.reduce((sum, p) => sum + p.population.length, 0) +
     world.getTravelersInTransit().length;
   statTick.textContent = world.tick;
   statPopulation.textContent = population;

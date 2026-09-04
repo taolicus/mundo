@@ -9,7 +9,7 @@ export function populatePlaces(places) {
       settings.dwellersPerPlaceMax
     );
     for (let i = 0; i < count; i++) {
-      place.habitants.push(newDweller(place, 0));
+      place.population.push(newDweller(place, 0));
     }
   });
 }

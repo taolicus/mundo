@@ -35,17 +35,16 @@ menuBtn.addEventListener("click", (e) => {
 });
 
 document.addEventListener("click", (e) => {
+  const actionBtn = e.target.closest("#menu button[data-action]");
+  if (actionBtn) {
+    menu.classList.remove("open");
+    if (actionBtn.dataset.action === "regions") showRegionList();
+    else if (actionBtn.dataset.action === "dwellers") showDwellerList();
+    return;
+  }
   if (!e.target.closest("#menuBtnWrap")) {
     menu.classList.remove("open");
   }
-});
-
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("#menu button[data-action]");
-  if (!b) return;
-  menu.classList.remove("open");
-  if (b.dataset.action === "regions") showRegionList();
-  else if (b.dataset.action === "dwellers") showDwellerList();
 });
 
 export function showRegionList() {
@@ -53,7 +52,7 @@ export function showRegionList() {
   const items = selectedWorld.places
     .map(
       (p, i) =>
-        `<div class="list-item" data-region="${i}"><span>${p.name}</span><b>${p.habitants.length}</b></div>`
+        `<div class="list-item" data-region="${i}"><span>${p.name}</span><b>${p.population.length}</b></div>`
     )
     .join("");
   showPanel("REGIONS", items);
@@ -85,7 +84,7 @@ export function showDwellerList() {
 
 function getAllDwellers() {
   const dwellers = [];
-  selectedWorld.places.forEach((p) => dwellers.push(...p.habitants));
+  selectedWorld.places.forEach((p) => dwellers.push(...p.population));
   selectedWorld.getTravelersInTransit().forEach((t) => dwellers.push(t));
   return dwellers;
 }
@@ -128,7 +127,7 @@ function renderPlace(place) {
     })
     .join("");
 
-  const dwellerList = place.habitants
+  const dwellerList = place.population
     .map(
       (h, i) =>
         `<div class="row"><a href="#" data-hab="${i}" class="hab-link" style="color:#4a4;text-decoration:none">${h.name}</a></div>`
@@ -138,7 +137,7 @@ function renderPlace(place) {
   showPanel(
     `PLACE · ${place.name}`,
     row("temperature", place.temperature.toFixed(1) + "°C") +
-      row("dwellers", place.habitants.length) +
+      row("dwellers", place.population.length) +
       row("resources", place.resources.length) +
       "<br><span style='color:#888'>resources</span><br>" +
       resources +
@@ -151,7 +150,7 @@ function renderPlace(place) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const h = place.habitants[Number(a.dataset.hab)];
+      const h = place.population[Number(a.dataset.hab)];
       if (h) showDweller(h);
     });
   });

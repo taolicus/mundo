@@ -77,7 +77,7 @@ export class World {
     this.places.forEach((place) => place.update(this.tick));
 
     this.places.forEach((place) => {
-      place.habitants.forEach((dweller) => dweller.update(this.tick));
+      place.population.forEach((dweller) => dweller.update(this.tick));
     });
 
     this.getTravelersInTransit().forEach((traveler) => traveler.update(this.tick));

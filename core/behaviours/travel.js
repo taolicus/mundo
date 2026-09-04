@@ -11,7 +11,7 @@ export const travel = {
   start(dweller, { route, reason }) {
     dweller.route = route;
     dweller.activity = reason;
-    dweller.place.habitants = dweller.place.habitants.filter((h) => h !== dweller);
+    dweller.place.population = dweller.place.population.filter((h) => h !== dweller);
     route.addTraveler(dweller);
     dweller.place = null;
     dweller.totalTravelTime = route.travelTime;
@@ -26,7 +26,7 @@ export const travel = {
     const destination = dweller.route.destination;
     dweller.route.removeTraveler(dweller);
     dweller.place = destination;
-    destination.habitants.push(dweller);
+    destination.population.push(dweller);
     dweller.route = null;
     dweller.activity = "resting";
     dweller.settleTicksRemaining = randomIntBetween(

@@ -89,9 +89,8 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ### Remove Relations
 - ✅ **Done.** The unused `Relation` machinery was removed (class, `addRelation`, `generateRelations`, settings, and panel display). Rebuild inside the behavior module only when social behavior actually needs it.
 
-### Naming: `habitants` → `population` — **pending**
-- Locked-in decision: rename the `habitants` array property to `population` (terminology transition). Referenced in `core/utils.js`, `entities/world.js`, `entities/region.js`, `entities/dweller.js`, `entities/population.js`, `ui/app.js`, `ui/panel.js`. Mechanical, low-risk.
-- (Note: there is also a future *Population module* — an aggregate/statistics owner — separate from this rename.)
+### Naming: `habitants` → `population` — ✅ done
+- Locked-in decision applied: the `habitants` array property is now `population` across all modules (`Region.population`, panel/app reads, travel arrival/departure). `data-hab`/`hab-link` DOM identifiers were left unchanged (they are presentation-only).
 
 ### Knowledge / indirect discovery (open thread)
 - ✅ **Knowledge spread channel added.** Dwellers gossip (`Dweller.shareKnowledgeWith`, chance `gossipProb:0.05` per co-located tick): a dweller at a place occasionally shares its `knowledge` (resource names) and `suppliers` map with a random co-dweller. This decouples "...you need what you already have locally" — awareness now propagates across the network without requiring personal visits. Verified: avg ~30 supplier entries per dweller on an 8-place map.

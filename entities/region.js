@@ -2,6 +2,7 @@ import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   chance,
+  calculateDistance,
   log,
 } from "../core/utils.js";
 import { drawCatalogSubset } from "../core/resources.js";
@@ -25,14 +26,8 @@ export class Route {
     this.origin = origin;
     this.destination = destination;
     this.travelers = [];
-    this.distance = this.calcDistance();
+    this.distance = calculateDistance(this.origin, this.destination);
     this.travelTime = Math.max(1, Math.floor(this.distance / settings.travelSpeedDivisor));
-  }
-
-  calcDistance() {
-    const dx = this.destination.x - this.origin.x;
-    const dy = this.destination.y - this.origin.y;
-    return Math.sqrt(dx * dx + dy * dy);
   }
 
   addTraveler(dweller) {
@@ -60,7 +55,7 @@ export class Region {
     this.y = y;
     this.temperature = 0;
     this.resources = [];
-    this.habitants = [];
+    this.population = [];
     this.routes = [];
     this.catalog = catalog;
     this.generateResources(catalog, tick);
@@ -120,11 +115,11 @@ export class Region {
   }
 
   attemptBirth(t) {
-    if (this.habitants.length >= settings.maxDwellersPerPlace) return;
+    if (this.population.length >= settings.maxDwellersPerPlace) return;
     if (!chance(settings.birthRate)) return;
 
     const baby = newDweller(this, t);
-    this.habitants.push(baby);
+    this.population.push(baby);
     log(`👶 ${baby.name} was born in ${this.name}`);
   }
 

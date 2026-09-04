@@ -18,33 +18,20 @@ export function generateName() {
   return first + second + third;
 }
 
-export function calculateDistance(placeA, placeB) {
-  const dx = placeB.x - placeA.x;
-  const dy = placeB.y - placeA.y;
+export function distance(x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+export function calculateDistance(placeA, placeB) {
+  return distance(placeA.x, placeA.y, placeB.x, placeB.y);
 }
 
 export function getRegion(x, y, places) {
   for (const place of places) {
-    const dist = Math.sqrt(
-      Math.pow(x - place.x, 2) + Math.pow(y - place.y, 2)
-    );
-    if (dist <= settings.drawSize) {
+    if (distance(x, y, place.x, place.y) <= settings.drawSize) {
       return place;
-    }
-  }
-  return null;
-}
-
-export function getDweller(x, y, places) {
-  for (const place of places) {
-    for (const dweller of place.habitants) {
-      const dist = Math.sqrt(
-        Math.pow(x - place.x, 2) + Math.pow(y - place.y, 2)
-      );
-      if (dist <= settings.drawSize / 2) {
-        return dweller;
-      }
     }
   }
   return null;
