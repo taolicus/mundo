@@ -132,6 +132,7 @@ class SurvivalNeed extends Need {
 
   behaviour(dweller) {
     if (!dweller.place || !this.shortageAnnounced) return null;
+    if (this.hasEdibleFood(dweller)) return null;
     const foodPlaces = this.knowFoodPlaces(dweller);
     if (foodPlaces.size === 0) return null;
 
