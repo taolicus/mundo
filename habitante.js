@@ -41,11 +41,6 @@ export class Habitante {
     this.generarNecesidadesBasicas();
   }
 
-  consumir(recurso, cantidad) {
-    recurso.cantidad -= cantidad;
-    if (recurso.cantidad < 0) recurso.cantidad = 0;
-  }
-
   agregarRelacion(habitante, tipo, intensidad) {
     const relacion = new Relacion(tipo, habitante, intensidad);
     this.relaciones.push(relacion);
@@ -94,7 +89,7 @@ export class Habitante {
 
   generarNecesidadesBasicas() {
     let recursosDisponibles = [...this.lugar.recursos];
-    for (let i = 0; i < ajustes.necesidadesPorHabitante; i++) {
+    for (let i = 0; i < ajustes.necesidadesPorHabitante(); i++) {
       const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
       if (!recursoSeleccionado) break;
       recursosDisponibles = recursosDisponibles.filter(
@@ -138,34 +133,31 @@ export class Habitante {
 
   actualizar() {
     // necesidades
-    this.necesidades.forEach((necesidad) => {
-      necesidad.ultimoConsumo++;
-      if (necesidad.ultimoConsumo > necesidad.frecuencia) {
-        if (necesidad.recurso.cantidad > 0) {
-          this.consumir(necesidad.recurso, necesidad.cantidad);
-          necesidad.ultimoConsumo = 0;
-          log(
-            `${this.nombre} ha consumido ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre}`
-          );
-        } else {
-          log(
-            `${this.nombre} (${
-              this.lugar?.nombre ||
-              `${this.ruta.origen.nombre} > ${this.ruta.destino.nombre}`
-            }) necesita consumir ${
-              necesidad.recurso.nombre
-            } pero no hay suficiente`
-          );
-          // consecuencias de no satisfacer su necesidad
-          // ir a buscar recursos a otros lugares (suplantar necesidades?: cambiar el recurso de una necesidad por otro recurso de otro lugar, si el recurso no esta disponible por mucho tiempo)
+    if (this.lugar) {
+      this.necesidades.forEach((necesidad) => {
+        necesidad.ultimoConsumo++;
+        if (necesidad.ultimoConsumo > necesidad.frecuencia) {
+          if (necesidad.recurso.cantidad > 0) {
+            this.lugar.consumirRecurso(necesidad.recurso, necesidad.cantidad);
+            necesidad.ultimoConsumo = 0;
+            log(
+              `${this.nombre} ha consumido ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre}`
+            );
+          } else {
+            log(
+              `${this.lugar.nombre} necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
+            );
+            // consecuencias de no satisfacer su necesidad
+            // ir a buscar recursos a otros lugares (suplantar necesidades?: cambiar el recurso de una necesidad por otro recurso de otro lugar, si el recurso no esta disponible por mucho tiempo)
+          }
         }
-      }
-    });
+      });
+    }
 
     //viajes
     if (this.ruta) {
       this.viajar();
-    } else {
+    } else if (this.lugar) {
       if (this.lugar.rutas.length > 0 && umbral(0.001)) {
         const ruta = elementoAleatorio(this.lugar.rutas);
         this.iniciarViaje(ruta);

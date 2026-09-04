@@ -47,7 +47,7 @@ const pauseBtn = document.getElementById("pause");
 const playBtn = document.getElementById("play");
 
 const fps = 30;
-const frameDuration = 2000 / fps;
+const frameDuration = 1000 / fps;
 let lastTime;
 let accumulator = 0;
 let animationId;
@@ -73,10 +73,7 @@ function pause() {
 
 function tick() {
   if (isPaused) {
-    // Execute exactly one frame's worth of updates
-    mundo.actualizar(frameDuration);
-
-    // Render with alpha = 0 (no interpolation since we're doing exact steps)
+    mundo.actualizar();
     mundo.dibujar(ctx, 0);
   }
 }
@@ -94,7 +91,7 @@ function loop(currentTime) {
 
   // Simulate the game state in fixed steps
   while (accumulator >= frameDuration) {
-    mundo.actualizar(frameDuration); // Fixed timestep
+    mundo.actualizar();
     accumulator -= frameDuration;
   }
 

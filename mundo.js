@@ -13,7 +13,7 @@ export class Mundo {
     this.height = h;
     this.lugares = [];
     this.tick = 0;
-    this.viajantes = [];
+    this.viajantes = new Set();
     this.dibujoRutas = new Path2D();
     this.generarLugares();
   }
@@ -56,6 +56,10 @@ export class Mundo {
         if (distancia <= distanciaMaxima) {
           const rutaA = new Ruta(this.lugares[i], this.lugares[j]);
           const rutaB = new Ruta(this.lugares[j], this.lugares[i]);
+          rutaA.onViajanteAdded = (v) => this.viajantes.add(v);
+          rutaA.onViajanteRemoved = (v) => this.viajantes.delete(v);
+          rutaB.onViajanteAdded = (v) => this.viajantes.add(v);
+          rutaB.onViajanteRemoved = (v) => this.viajantes.delete(v);
           this.lugares[i].rutas.push(rutaA);
           this.lugares[j].rutas.push(rutaB);
           this.dibujoRutas.moveTo(this.lugares[i].x, this.lugares[i].y);
@@ -88,10 +92,6 @@ export class Mundo {
 
     // Calcular viajes
     this.viajantes.forEach((viajante) => viajante.actualizar());
-
-    this.viajantes = this.lugares
-      .flatMap((lugar) => lugar.rutas)
-      .flatMap((ruta) => ruta.viajantes);
   }
 
   dibujar(ctx, alpha) {

@@ -23,6 +23,8 @@ export class Ruta {
     this.viajantes = [];
     this.distancia = this.calcularDistancia();
     this.tiempoViaje = Math.max(1, Math.floor(this.distancia / 10));
+    this.onViajanteAdded = null;
+    this.onViajanteRemoved = null;
   }
 
   calcularDistancia() {
@@ -34,11 +36,13 @@ export class Ruta {
   agregarViajante(habitante) {
     if (!this.viajantes.includes(habitante)) {
       this.viajantes.push(habitante);
+      if (this.onViajanteAdded) this.onViajanteAdded(habitante);
     }
   }
 
   removerViajante(habitante) {
     this.viajantes = this.viajantes.filter((v) => v !== habitante);
+    if (this.onViajanteRemoved) this.onViajanteRemoved(habitante);
   }
 
   obtenerPosicionEnRuta(progreso) {
@@ -66,7 +70,7 @@ export class Lugar {
   }
 
   generarRecursos() {
-    const cantidad = ajustes.recursosPorLugar;
+    const cantidad = ajustes.recursosPorLugar();
     for (let i = 0; i < cantidad; i++) {
       const nombre = generarNombre();
       const recurso = new Recurso(nombre, this);
@@ -75,7 +79,7 @@ export class Lugar {
   }
 
   generarHabitantes() {
-    const cantidad = ajustes.habitantesPorLugar;
+    const cantidad = ajustes.habitantesPorLugar();
     for (let i = 0; i < cantidad; i++) {
       const nombre = generarNombre();
       const habitante = new Habitante(nombre, this, this);
@@ -101,6 +105,19 @@ export class Lugar {
     this.temperatura = tempBase + variacionAnual + variacionDiaria;
   }
 
+  consumirRecurso(recurso, cantidad) {
+    if (!this.recursos.includes(recurso)) return false;
+    recurso.cantidad -= cantidad;
+    if (recurso.cantidad < 0) recurso.cantidad = 0;
+    return true;
+  }
+
+  producirRecurso(recurso, cantidad) {
+    if (!this.recursos.includes(recurso)) return false;
+    recurso.cantidad += cantidad;
+    return true;
+  }
+
   actualizar(t) {
     this.calcularTemperatura(t);
     this.habitantes.forEach((habitante) => habitante.actualizar());
@@ -108,7 +125,7 @@ export class Lugar {
     this.recursos.forEach((recurso) => {
       if (umbral(0.1)) {
         const cantidad = numberoAleatorioEntre(1, 10);
-        recurso.cantidad += cantidad;
+        this.producirRecurso(recurso, cantidad);
         log(
           `${this.nombre} ha producido ${cantidad} nuevas unidades de ${recurso.nombre}`
         );
