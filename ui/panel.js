@@ -97,7 +97,12 @@ export function showDweller(dweller) {
 function renderDweller(dweller) {
   const needs = dweller.needs.length
     ? dweller.needs
-        .map((n) => row(n.resource.name, `${n.amount}u / every ${n.frequency}t`))
+        .map((n) => {
+          if (n.type === "exploration") {
+            return row("explore", `every ${n.frequency}t`);
+          }
+          return row(n.resource.name, `${n.amount}u / every ${n.frequency}t`);
+        })
         .join("")
     : "";
 

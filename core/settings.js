@@ -41,13 +41,14 @@ export const settings = {
   birthRate: 0.001,
   maxDwellersPerPlace: 60,
 
-  exploreProb: 0.002,
-  needsPerDwellerMin: 1,
-  needsPerDwellerMax: 3,
   needAmountMin: 1,
   needAmountMax: 2,
   needFrequencyMin: 24,
   needFrequencyMax: 72,
+  needsPerDwellerMin: 1,
+  needsPerDwellerMax: 3,
+  explorationFrequencyMin: 120,
+  explorationFrequencyMax: 300,
 
   minDistanceBetweenPlaces: 200,
   maxPlacementAttempts: 100,

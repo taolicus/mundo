@@ -2,12 +2,12 @@ import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   randomElement,
-  chance,
   log,
 } from "../core/utils.js";
 
 class Need {
-  constructor(resource, amount, frequency = 0) {
+  constructor(type, resource = null, amount = 0, frequency = 0) {
+    this.type = type;
     this.resource = resource;
     this.amount = amount;
     this.lastConsumption = 0;
@@ -33,8 +33,9 @@ export class Dweller {
     this.elapsedTravelTime = 0;
     this.knowledge = new Set();
     this.suppliers = new Map();
+    this.visitedPlaceNames = new Set();
     if (place) this.learnPlace(place);
-    this.generateBasicNeeds();
+    this.generateNeeds();
   }
 
   nextBirthday() {
@@ -42,6 +43,7 @@ export class Dweller {
   }
 
   learnPlace(place) {
+    this.visitedPlaceNames.add(place.name);
     for (const resource of place.resources) {
       this.knowledge.add(resource.name);
       if (!this.suppliers.has(resource.name)) {
@@ -64,7 +66,7 @@ export class Dweller {
     return this.localEdibleResources().filter((r) => this.knows(r.name));
   }
 
-  generateBasicNeeds() {
+  generateNeeds() {
     if (!this.place) return;
     let available = [...this.knownLocalEdibleResources()];
     const count = randomIntBetween(settings.needsPerDwellerMin, settings.needsPerDwellerMax);
@@ -75,15 +77,29 @@ export class Dweller {
         (r) => r !== selected
       );
       const need = new Need(
+        "survival",
         selected,
         randomIntBetween(settings.needAmountMin, settings.needAmountMax),
         randomIntBetween(settings.needFrequencyMin, settings.needFrequencyMax)
       );
       this.needs.push(need);
     }
+
+    this.needs.push(
+      new Need(
+        "exploration",
+        null,
+        0,
+        randomIntBetween(
+          settings.explorationFrequencyMin,
+          settings.explorationFrequencyMax
+        )
+      )
+    );
   }
 
   canSatisfyLocally(need) {
+    if (!need.resource) return true;
     return (
       need.resource.amount > 0 ||
       this.place.resources.some(
@@ -100,6 +116,7 @@ export class Dweller {
     );
 
     for (const need of this.needs) {
+      if (need.type !== "survival") continue;
       const name = need.resource.name;
       if (localSupplies.has(name)) continue;
       if (!this.suppliers.has(name)) continue;
@@ -112,6 +129,18 @@ export class Dweller {
       }
     }
     return null;
+  }
+
+  pickExplorationRoute() {
+    if (!this.place || !this.place.routes || this.place.routes.length === 0) return null;
+
+    const unvisited = this.place.routes.filter(
+      (route) => !this.visitedPlaceNames.has(route.destination.name)
+    );
+    if (unvisited.length > 0) {
+      return randomElement(unvisited);
+    }
+    return randomElement(this.place.routes);
   }
 
   ageOneYear(t) {
@@ -158,7 +187,7 @@ export class Dweller {
       this.place.habitants.push(this);
       this.learnPlace(this.place);
       this.needs = [];
-      this.generateBasicNeeds();
+      this.generateNeeds();
       log(
         `${this.name} arrived at ${this.route.destination.name} from ${this.route.origin.name}`
       );
@@ -178,6 +207,7 @@ export class Dweller {
 
     if (this.place) {
       this.needs.forEach((need) => {
+        if (need.type !== "survival") return;
         need.lastConsumption++;
         if (need.lastConsumption > need.frequency) {
           const available = this.place.resources.find(
@@ -220,14 +250,24 @@ export class Dweller {
       const routeByNeed = this.pickRouteByNeed();
       if (routeByNeed) {
         this.startTravel(routeByNeed);
-      } else if (
-        this.place.routes &&
-        this.place.routes.length > 0 &&
-        chance(settings.exploreProb)
-      ) {
-        const route = randomElement(this.place.routes);
-        this.startTravel(route);
+      } else if (this.wantsToExplore()) {
+        const exploreRoute = this.pickExplorationRoute();
+        if (exploreRoute) {
+          this.startTravel(exploreRoute);
+        }
       }
     }
+  }
+
+  wantsToExplore() {
+    let ready = false;
+    this.needs.forEach((need) => {
+      if (need.type !== "exploration") return;
+      need.lastConsumption++;
+      if (need.lastConsumption > need.frequency) {
+        ready = true;
+      }
+    });
+    return ready;
   }
 }
