@@ -113,6 +113,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - ✅ **Done:** single toggle Play/Pause (`#toggle`).
 - ✅ **Done:** menu button (☰) with **Regions** list and **Dwellers** list (incl. travellers); clicking an item opens the same info as the corresponding canvas click; dweller details show current action/reason; place field shows `origin → destination` while travelling.
 - ✅ **Reverted:** per-traveler canvas action labels (too cluttered) — reasons shown on the dweller panel instead.
+- ✅ **Inspection surfaces (phase 3):** clicking a **traveller dot** (or a dweller in any list) opens a deep dweller inspect and a gold dashed ring follows that dweller across travel. The dweller panel is live (re-rendered every tick): age/health, `temperament` (curious/settled), `homebody`, origin, place or `origin → destination`, state (`resting Nt` countdown, `X% of Nt`, idle), activity, **5 needs with urgency bars** (hunger shows raw urgency), and knowledge (`resource names`, `supplier links`, `places visited`, top `likes`). **Region economy** shows resource bars with `rate` + `next Nt` production wait, routes with live `traffic` counts, and resident links. Menu adds **In transit**, listing travellers with `origin → destination` and progress.
 
 ## Tests
 

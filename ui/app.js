@@ -3,7 +3,7 @@ import { settings } from "../core/settings.js";
 import { events } from "../core/events.js";
 import { World } from "../entities/world.js";
 import { drawWorld, buildRoutesPath } from "./render.js";
-import { showPlace, updatePanel, hidePanel, setWorld } from "./panel.js";
+import { showPlace, showDweller, updatePanel, hidePanel, setWorld } from "./panel.js";
 
 events.debug = Boolean(window.__DEBUG__) || location.search.includes("debug");
 
@@ -16,12 +16,30 @@ function getRegion(x, y, places) {
   return null;
 }
 
+function getTravelerPos(traveler) {
+  const pos = traveler.route.getPositionOnRoute(traveler.travelProgress);
+  return { x: pos.x, y: pos.y };
+}
+
+function hitTestTraveler(x, y, world) {
+  for (const traveler of world.getTravelersInTransit()) {
+    const pos = getTravelerPos(traveler);
+    if (distance(x, y, pos.x, pos.y) <= 14) return traveler;
+  }
+  return null;
+}
+
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 let world;
 let routesDrawing;
+let focusDweller = null;
+
+document.addEventListener("focus-dweller", (e) => {
+  focusDweller = e.detail;
+});
 
 function resize() {
   const w = window.innerWidth;
@@ -42,11 +60,11 @@ resize();
 world = new World(canvas.width, canvas.height);
 setWorld(world);
 routesDrawing = buildRoutesPath(world);
-drawWorld(ctx, world, 0, routesDrawing);
+drawWorld(ctx, world, 0, routesDrawing, focusDweller);
 
 window.addEventListener("resize", () => {
   resize();
-  drawWorld(ctx, world, 0, routesDrawing);
+  drawWorld(ctx, world, 0, routesDrawing, focusDweller);
 });
 
 canvas.addEventListener("click", (event) => {
@@ -57,9 +75,17 @@ canvas.addEventListener("click", (event) => {
   const place = getRegion(x, y, world.places);
 
   if (place) {
+    focusDweller = null;
     showPlace(place);
   } else {
-    hidePanel();
+    const traveler = hitTestTraveler(x, y, world);
+    if (traveler) {
+      focusDweller = traveler;
+      showDweller(traveler);
+    } else {
+      focusDweller = null;
+      hidePanel();
+    }
   }
 });
 
@@ -104,7 +130,7 @@ function toggle() {
 function tick() {
   if (!isRunning) {
     world.update();
-    drawWorld(ctx, world, 0, routesDrawing);
+    drawWorld(ctx, world, 0, routesDrawing, focusDweller);
     updateStats();
     updatePanel();
   }
@@ -124,7 +150,7 @@ function loop(currentTime) {
   }
 
   const alpha = accumulator / frameDuration;
-  drawWorld(ctx, world, alpha, routesDrawing);
+  drawWorld(ctx, world, alpha, routesDrawing, focusDweller);
   updateStats();
   updatePanel();
 

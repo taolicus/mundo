@@ -40,6 +40,7 @@ document.addEventListener("click", (e) => {
     menu.classList.remove("open");
     if (actionBtn.dataset.action === "regions") showRegionList();
     else if (actionBtn.dataset.action === "dwellers") showDwellerList();
+    else if (actionBtn.dataset.action === "transit") showTransitList();
     return;
   }
   if (!e.target.closest("#menuBtnWrap")) {
@@ -118,10 +119,14 @@ function renderPlace(place) {
   const resources = place.resources
     .map((r) => {
       const ratio = r.amount / r.capacity;
+      const wait =
+        r.nextProductionTick == null
+          ? 0
+          : Math.max(0, r.nextProductionTick - selectedWorld.tick);
       return (
         row(r.name, `${r.amount} / ${r.capacity}`) +
         bar(ratio) +
-        row("type", `${r.type} · rate ${r.genRate}`) +
+        row("type", `${r.type} · rate ${r.genRate} · next ${wait}t`) +
         "<br>"
       );
     })
@@ -134,13 +139,23 @@ function renderPlace(place) {
     )
     .join("");
 
+  const routes = place.routes
+    .map((r) => {
+      const neighbor =
+        r.origin === place ? r.destination.name : r.origin.name;
+      return row(neighbor, `traffic ${r.travelers.length}`);
+    })
+    .join("");
+
   showPanel(
     `PLACE · ${place.name}`,
     row("temperature", place.temperature.toFixed(1) + "°C") +
       row("dwellers", place.population.length) +
+      row("routes", place.routes.length) +
       row("resources", place.resources.length) +
       "<br><span style='color:#888'>resources</span><br>" +
       resources +
+      (routes ? "<span style='color:#888'>routes</span><br>" + routes : "") +
       (dwellerList
         ? "<span style='color:#888'>dwellers</span><br>" + dwellerList
         : "")
@@ -159,23 +174,50 @@ function renderPlace(place) {
 export function showDweller(dweller) {
   currentSelection = { type: "dweller", dweller };
   renderDweller(dweller);
+  document.dispatchEvent(new CustomEvent("focus-dweller", { detail: dweller }));
 }
 
 function renderDweller(dweller) {
+  const location = dweller.route
+    ? `${dweller.route.origin.name} → ${dweller.route.destination.name}`
+    : dweller.place
+      ? dweller.place.name
+      : "—";
+
   const needs = dweller.needs.length
     ? dweller.needs
         .map((n) => {
-          if (n.type === "survival") return row("hunger", `every ${n.frequency}t`);
-          if (n.type === "exploration") return row("explore", `every ${n.frequency}t`);
-          if (n.type === "gather") return row("gather", `every ${n.frequency}t`);
-          return "";
+          const raw = n.urgency(dweller);
+          const ratio = Math.max(0, Math.min(1, raw / (n.type === "survival" ? 3 : 1)));
+          const label =
+            n.type === "survival"
+              ? "hunger"
+              : n.type === "exploration"
+                ? "explore"
+                : n.type === "gather"
+                  ? "gather"
+                  : n.type === "tend"
+                    ? "tend"
+                    : "homing";
+          return (
+            row(`need · ${label}`, n.type === "survival" ? raw.toFixed(1) : `every ${n.frequency}t`) +
+            bar(ratio)
+          );
         })
         .join("")
     : "";
 
-  const likes = dweller.tastes && dweller.tastes.length
-    ? dweller.tastes[0]
-    : "—";
+  const likes = dweller.tastes && dweller.tastes.length ? dweller.tastes : [];
+  const supplierCount = [...dweller.suppliers.entries()].reduce(
+    (n, [, places]) => n + places.size,
+    0
+  );
+
+  const progress = dweller.route
+    ? `${Math.round(dweller.travelProgress * 100)}% of ${dweller.totalTravelTime}t`
+    : dweller.settleTicksRemaining > 0
+      ? `resting ${dweller.settleTicksRemaining}t`
+      : "idle";
 
   const back = backPlace
     ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${backPlace.name}</a><br>`
@@ -184,17 +226,19 @@ function renderDweller(dweller) {
   showPanel(
     `DWELLER · ${dweller.name}`,
     back +
-      row("age", dweller.age) +
-      row("likes", likes) +
+      row("age", `${dweller.age} · health ${dweller.health}`) +
+      row("temperament", dweller.isCurious ? "curious" : "settled") +
+      row("homebody", dweller.homebody.toFixed(2)) +
+      row("origin", dweller.origin.name) +
+      row("place", location) +
+      row("state", progress) +
       row("activity", dweller.activity || "resting") +
-      row("place", dweller.route
-        ? `${dweller.route.origin.name} → ${dweller.route.destination.name}`
-        : dweller.place
-          ? dweller.place.name
-          : "—") +
-      (needs
-        ? "<br><span style='color:#888'>needs</span><br>" + needs
-        : "")
+      (needs ? "<br><span style='color:#888'>needs</span><br>" + needs : "") +
+      "<br><span style='color:#888'>knowledge</span><br>" +
+      row("resource names", dweller.knowledge.size) +
+      row("supplier links", supplierCount) +
+      row("places visited", dweller.visitedPlaceNames.size) +
+      row("likes", likes.slice(0, 4).join(", ") + (likes.length > 4 ? "…" : "—"))
   );
 
   const backBtn = panelBody.querySelector("#panelBack");
@@ -205,4 +249,25 @@ function renderDweller(dweller) {
       if (backPlace) showPlace(backPlace);
     });
   }
+}
+
+export function showTransitList() {
+  currentSelection = { type: "list", label: "In transit" };
+  const travelers = selectedWorld.getTravelersInTransit();
+  const items = travelers
+    .map(
+      (d, i) =>
+        `<div class="list-item" data-hab="${i}"><span>${d.name}</span><b>${d.route.origin.name} → ${d.route.destination.name} ${Math.round(d.travelProgress * 100)}%</b></div>`
+    )
+    .join("");
+  showPanel(
+    travelers.length ? `IN TRANSIT · ${travelers.length}` : "IN TRANSIT",
+    items || "<span style='color:#888'>no travelers</span>"
+  );
+  panelBody.querySelectorAll(".list-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const d = travelers[Number(el.dataset.hab)];
+      if (d) showDweller(d);
+    });
+  });
 }

@@ -30,7 +30,7 @@ function tempColor(temp) {
   return `rgb(${r},${g},${b})`;
 }
 
-export function drawWorld(ctx, world, alpha, routesDrawing) {
+export function drawWorld(ctx, world, alpha, routesDrawing, focus) {
   ctx.clearRect(0, 0, world.width, world.height);
 
   ctx.strokeStyle = "#666";
@@ -39,26 +39,29 @@ export function drawWorld(ctx, world, alpha, routesDrawing) {
 
   ctx.fillStyle = "#0f0";
   world.getTravelersInTransit().forEach((traveler) => {
-    const currentProgress = traveler.travelProgress;
-    const nextProgress = Math.min(
-      1,
-      (traveler.elapsedTravelTime + 1) / traveler.totalTravelTime
-    );
-
-    const currentPos =
-      traveler.route.getPositionOnRoute(currentProgress);
-    const nextPos =
-      traveler.route.getPositionOnRoute(nextProgress);
-
-    const interpX =
-      currentPos.x + (nextPos.x - currentPos.x) * alpha;
-    const interpY =
-      currentPos.y + (nextPos.y - currentPos.y) * alpha;
-
+    const pos = interpolatedPos(traveler, alpha);
     ctx.beginPath();
-    ctx.arc(interpX, interpY, 5, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
     ctx.fill();
   });
+
+  if (focus && focus.alive) {
+    let pos = null;
+    if (focus.route) {
+      pos = interpolatedPos(focus, alpha);
+    } else if (focus.place) {
+      pos = { x: focus.place.x, y: focus.place.y };
+    }
+    if (pos) {
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 13, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
 
   for (const place of world.places) {
     ctx.fillStyle = tempColor(place.temperature);
@@ -68,4 +71,20 @@ export function drawWorld(ctx, world, alpha, routesDrawing) {
     ctx.fillStyle = "#fff";
     ctx.fillText(place.name, place.x, place.y + settings.drawSize * 2);
   }
+}
+
+function interpolatedPos(traveler, alpha) {
+  const currentProgress = traveler.travelProgress;
+  const nextProgress = Math.min(
+    1,
+    (traveler.elapsedTravelTime + 1) / traveler.totalTravelTime
+  );
+
+  const currentPos = traveler.route.getPositionOnRoute(currentProgress);
+  const nextPos = traveler.route.getPositionOnRoute(nextProgress);
+
+  return {
+    x: currentPos.x + (nextPos.x - currentPos.x) * alpha,
+    y: currentPos.y + (nextPos.y - currentPos.y) * alpha,
+  };
 }
