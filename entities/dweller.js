@@ -145,8 +145,12 @@ class ExplorationNeed extends Need {
     return Math.min(1, this.lastExplored / this.frequency);
   }
 
+  weight(dweller) {
+    return this.urgency(dweller) * settings.explorationWeight;
+  }
+
   behaviour(dweller) {
-    if (this.urgency(dweller) < settings.behaviourThreshold) return null;
+    if (this.urgency(dweller) < settings.explorationThreshold) return null;
     if (!dweller.place || dweller.place.routes.length === 0) return null;
     const unvisited = dweller.place.routes.filter(
       (route) => !dweller.visitedPlaceNames.has(route.destination.name)
@@ -220,6 +224,7 @@ export class Dweller {
     this.suppliers = new Map();
     this.visitedPlaceNames = new Set();
     this.tastes = this.buildTastes(place);
+    this.isCurious = chance(settings.explorationProb);
     if (place) this.learnPlace(place);
     this.generateNeeds();
   }
@@ -275,14 +280,16 @@ export class Dweller {
       )
     );
 
-    this.needs.push(
-      new ExplorationNeed(
-        randomIntBetween(
-          settings.explorationFrequencyMin,
-          settings.explorationFrequencyMax
+    if (this.isCurious) {
+      this.needs.push(
+        new ExplorationNeed(
+          randomIntBetween(
+            settings.explorationFrequencyMin,
+            settings.explorationFrequencyMax
+          )
         )
-      )
-    );
+      );
+    }
 
     this.needs.push(
       new GatherNeed(
@@ -318,8 +325,6 @@ export class Dweller {
 
   onArrival(destination) {
     this.learnPlace(destination);
-    this.needs = [];
-    this.generateNeeds();
   }
 
   update(t) {
@@ -366,10 +371,8 @@ export class Dweller {
     if (candidates.length === 0) return;
 
     const chosen = weightedPick(candidates);
-    if (chosen.need) {
-      if (chosen.need.type === "exploration") chosen.need.lastExplored = 0;
-      else if (chosen.need.type === "gather") chosen.need.lastGather = 0;
-    }
+    if (chosen.need.type === "exploration") chosen.need.lastExplored = 0;
+    else if (chosen.need.type === "gather") chosen.need.lastGather = 0;
     switch (chosen.behaviour) {
       case "travel":
         travelBehaviour.perform(this, chosen);
