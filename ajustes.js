@@ -1,21 +1,53 @@
-import { numberoAleatorioEntre } from "./funciones.js";
-
 export const ajustes = {
   cantLugares: 8,
-  habitantesPorLugar: () => numberoAleatorioEntre(10, 30),
-  recursosPorLugar: () => numberoAleatorioEntre(2, 6),
+  recursosPorLugarMin: 2,
+  recursosPorLugarMax: 6,
   tamanoDibujo: 30,
-  necesidadesPorHabitante: () => numberoAleatorioEntre(1, 4),
+
   TEMP_MAX_BASE: 30,
-  AMPLITUD_ANUAL: 15, // Variación entre estaciones
-  AMPLITUD_DIARIA: 5, // Variación entre día y noche
+  AMPLITUD_ANUAL: 15,
+  AMPLITUD_DIARIA: 5,
   ENFRIAMIENTO_Y: 0.05,
   horasDia: 24,
   diasEnAnio: 360,
+
   CAPACIDAD_BASE_MIN: 50,
   CAPACIDAD_BASE_MAX: 200,
   TASA_BASE_MIN: 1,
   TASA_BASE_MAX: 5,
   SENSIBILIDAD_TEMPERATURA: 0.01,
   TEMP_OPTIMA: 15,
+  PROB_SENSIBILIDAD_TEMPERATURA: 0.3,
+
+  habitantesPorLugarMin: 10,
+  habitantesPorLugarMax: 30,
+  habilidadMin: 5,
+  habilidadMax: 20,
+  HABILIDAD_DIVISOR: 10,
+  necesidadesPorHabitanteMin: 1,
+  necesidadesPorHabitanteMax: 4,
+  necesidadCantidadMin: 1,
+  necesidadCantidadMax: 6,
+  necesidadFrecuenciaMin: 1,
+  necesidadFrecuenciaMax: 6,
+  PROB_NECESIDAD: 0.05,
+  PROB_RETENER_TRABAJO: 0.9,
+  PROB_VIAJAR: 0.001,
+  MAX_RELACIONES_RATIO: 0.1,
+  relacionIntensidadMin: 1,
+  relacionIntensidadMax: 3,
+
+  distanciaMinimaLugares: 200,
+  maxIntentosColocacion: 100,
+  distanciaMaximaRuta: 600,
+  VELOCIDAD_VIAJE_DIVISOR: 10,
+  PROB_DESCUBRIMIENTO: 0.005,
+  UMBRAL_STOCK_DESCUBRIMIENTO: 0.5,
+  COSTO_DESCUBRIMIENTO: 0.75,
+
+  TEMP_FRIO_MAX: 5,
+  TEMP_TEMPLADO_MAX: 25,
+  TEMP_CALUROSO_RANGO: 15,
+
+  fps: 30,
 };

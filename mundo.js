@@ -6,6 +6,7 @@ import {
   log,
 } from "./funciones.js";
 import { Lugar, Ruta } from "./lugar.js";
+import { Habitante } from "./habitante.js";
 
 export class Mundo {
   constructor(w, h) {
@@ -13,16 +14,14 @@ export class Mundo {
     this.height = h;
     this.lugares = [];
     this.tick = 0;
-    this.viajantes = new Set();
     this.dibujoRutas = new Path2D();
     this.generarLugares();
   }
 
-  agregarLugar(distanciaMinima = 200) {
+  agregarLugar() {
     let intentos = 0;
-    const maxIntentos = 100;
 
-    while (intentos < maxIntentos) {
+    while (intentos < ajustes.maxIntentosColocacion) {
       const lugar = new Lugar(
         generarNombre(),
         numberoAleatorioEntre(
@@ -37,7 +36,7 @@ export class Mundo {
 
       const demasiadoCerca = this.lugares.some(
         (lugarExistente) =>
-          calcularDistancia(lugar, lugarExistente) < distanciaMinima
+          calcularDistancia(lugar, lugarExistente) < ajustes.distanciaMinimaLugares
       );
 
       if (!demasiadoCerca || this.lugares.length === 0) {
@@ -49,19 +48,13 @@ export class Mundo {
     }
   }
 
-  generarRutas(distanciaMaxima = 600) {
+  generarRutas() {
     for (let i = 0; i < this.lugares.length; i++) {
       for (let j = i + 1; j < this.lugares.length; j++) {
         const distancia = calcularDistancia(this.lugares[i], this.lugares[j]);
-        if (distancia <= distanciaMaxima) {
-          const rutaA = new Ruta(this.lugares[i], this.lugares[j]);
-          const rutaB = new Ruta(this.lugares[j], this.lugares[i]);
-          rutaA.onViajanteAdded = (v) => this.viajantes.add(v);
-          rutaA.onViajanteRemoved = (v) => this.viajantes.delete(v);
-          rutaB.onViajanteAdded = (v) => this.viajantes.add(v);
-          rutaB.onViajanteRemoved = (v) => this.viajantes.delete(v);
-          this.lugares[i].rutas.push(rutaA);
-          this.lugares[j].rutas.push(rutaB);
+        if (distancia <= ajustes.distanciaMaximaRuta) {
+          this.lugares[i].rutas.push(new Ruta(this.lugares[i], this.lugares[j]));
+          this.lugares[j].rutas.push(new Ruta(this.lugares[j], this.lugares[i]));
           this.dibujoRutas.moveTo(this.lugares[i].x, this.lugares[i].y);
           this.dibujoRutas.lineTo(this.lugares[j].x, this.lugares[j].y);
         }
@@ -74,6 +67,27 @@ export class Mundo {
       this.agregarLugar();
     }
     this.generarRutas();
+
+    this.lugares.forEach((lugar) => {
+      const cantidad = numberoAleatorioEntre(ajustes.habitantesPorLugarMin, ajustes.habitantesPorLugarMax);
+      for (let i = 0; i < cantidad; i++) {
+        const nombre = generarNombre();
+        const habitante = new Habitante(nombre, lugar, lugar);
+        lugar.habitantes.push(habitante);
+      }
+    });
+
+    this.lugares.forEach((lugar) => {
+      lugar.habitantes.forEach((habitante) => {
+        habitante.generarRelaciones();
+        habitante.asignarTrabajo();
+      });
+    });
+  }
+
+  obtenerViajantesEnTransito() {
+    return this.lugares.flatMap((l) => l.rutas).flatMap((r) => r.viajantes)
+      .filter((v) => v.progresoViaje >= 0 && v.progresoViaje < 1);
   }
 
   actualizar() {
@@ -82,29 +96,24 @@ export class Mundo {
 
     this.lugares.forEach((lugar) => lugar.actualizar(this.tick));
 
-    // Generar necesidades
-    // const recursos = this.lugares.flatMap((lugar) => lugar.recursos);
-    // this.lugares
-    //   .flatMap((lugar) => lugar.habitantes)
-    //   .forEach((habitante) => {
-    //     habitante.generarNecesidad(recursos);
-    //   });
+    this.lugares.forEach((lugar) => {
+      lugar.habitantes.forEach((habitante) => habitante.actualizar());
+    });
 
-    // Calcular viajes
-    this.viajantes.forEach((viajante) => viajante.actualizar());
+    this.obtenerViajantesEnTransito().forEach((viajante) => viajante.actualizar());
   }
 
   colorTemperatura(temp) {
     let r, g, b;
-    if (temp <= 5) {
+    if (temp <= ajustes.TEMP_FRIO_MAX) {
       r = 68; g = 136; b = 255;
-    } else if (temp <= 25) {
-      const t = (temp - 5) / 20;
+    } else if (temp <= ajustes.TEMP_TEMPLADO_MAX) {
+      const t = (temp - ajustes.TEMP_FRIO_MAX) / (ajustes.TEMP_TEMPLADO_MAX - ajustes.TEMP_FRIO_MAX);
       r = Math.round(68 + (255 - 68) * t);
       g = Math.round(136 + (255 - 136) * t);
       b = Math.round(255 + (255 - 255) * t);
     } else {
-      const t = Math.min(1, (temp - 25) / 15);
+      const t = Math.min(1, (temp - ajustes.TEMP_TEMPLADO_MAX) / ajustes.TEMP_CALUROSO_RANGO);
       r = Math.round(255 + (255 - 255) * t);
       g = Math.round(255 + (68 - 255) * t);
       b = Math.round(255 + (68 - 255) * t);
@@ -115,14 +124,12 @@ export class Mundo {
   dibujar(ctx, alpha) {
     ctx.clearRect(0, 0, this.width, this.height);
 
-    // Rutas
     ctx.strokeStyle = "#666";
     ctx.lineWidth = 1;
     ctx.stroke(this.dibujoRutas);
 
-    // Viajantes
     ctx.fillStyle = "#0f0";
-    this.viajantes.forEach((viajante) => {
+    this.obtenerViajantesEnTransito().forEach((viajante) => {
       const progresoActual = viajante.progresoViaje;
       const progresoSiguiente = Math.min(
         1,
@@ -144,7 +151,6 @@ export class Mundo {
       ctx.fill();
     });
 
-    // Lugares
     for (const lugar of this.lugares) {
       ctx.fillStyle = this.colorTemperatura(lugar.temperatura);
       ctx.beginPath();

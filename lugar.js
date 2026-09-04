@@ -6,7 +6,6 @@ import {
   umbral,
   log,
 } from "./funciones.js";
-import { Habitante } from "./habitante.js";
 
 class Recurso {
   constructor(nombre, origen) {
@@ -17,7 +16,7 @@ class Recurso {
     this.generacionRate = numberoAleatorioEntre(ajustes.TASA_BASE_MIN, ajustes.TASA_BASE_MAX);
     this.capacidad = numberoAleatorioEntre(ajustes.CAPACIDAD_BASE_MIN, ajustes.CAPACIDAD_BASE_MAX);
     this.tipo = elementoAleatorio(["organico", "mineral"]);
-    this.sensibleTemperatura = umbral(0.3);
+    this.sensibleTemperatura = umbral(ajustes.PROB_SENSIBILIDAD_TEMPERATURA);
   }
 }
 
@@ -27,9 +26,7 @@ export class Ruta {
     this.destino = destino;
     this.viajantes = [];
     this.distancia = this.calcularDistancia();
-    this.tiempoViaje = Math.max(1, Math.floor(this.distancia / 10));
-    this.onViajanteAdded = null;
-    this.onViajanteRemoved = null;
+    this.tiempoViaje = Math.max(1, Math.floor(this.distancia / ajustes.VELOCIDAD_VIAJE_DIVISOR));
   }
 
   calcularDistancia() {
@@ -41,13 +38,11 @@ export class Ruta {
   agregarViajante(habitante) {
     if (!this.viajantes.includes(habitante)) {
       this.viajantes.push(habitante);
-      if (this.onViajanteAdded) this.onViajanteAdded(habitante);
     }
   }
 
   removerViajante(habitante) {
     this.viajantes = this.viajantes.filter((v) => v !== habitante);
-    if (this.onViajanteRemoved) this.onViajanteRemoved(habitante);
   }
 
   obtenerPosicionEnRuta(progreso) {
@@ -69,27 +64,14 @@ export class Lugar {
     this.rutas = [];
     this.descubrimientos = [];
     this.generarRecursos();
-    this.generarHabitantes();
-    this.habitantes.forEach((habitante) => {
-      habitante.generarRelaciones();
-    });
   }
 
   generarRecursos() {
-    const cantidad = ajustes.recursosPorLugar();
+    const cantidad = numberoAleatorioEntre(ajustes.recursosPorLugarMin, ajustes.recursosPorLugarMax);
     for (let i = 0; i < cantidad; i++) {
       const nombre = generarNombre();
       const recurso = new Recurso(nombre, this);
       this.recursos.push(recurso);
-    }
-  }
-
-  generarHabitantes() {
-    const cantidad = ajustes.habitantesPorLugar();
-    for (let i = 0; i < cantidad; i++) {
-      const nombre = generarNombre();
-      const habitante = new Habitante(nombre, this, this);
-      this.habitantes.push(habitante);
     }
   }
 
@@ -130,7 +112,7 @@ export class Lugar {
   }
 
   intentarDescubrimiento() {
-    if (this.recursos.length < 2 || !umbral(0.005)) return;
+    if (this.recursos.length < 2 || !umbral(ajustes.PROB_DESCUBRIMIENTO)) return;
 
     const recursoA = elementoAleatorio(this.recursos);
     const recursoB = elementoAleatorio(this.recursos.filter((r) => r !== recursoA));
@@ -140,8 +122,8 @@ export class Lugar {
     const par = [recursoA.nombre, recursoB.nombre].sort().join("+");
     if (this.descubrimientos.includes(par)) return;
 
-    if (recursoA.cantidad > recursoA.capacidad * 0.5 &&
-        recursoB.cantidad > recursoB.capacidad * 0.5) {
+    if (recursoA.cantidad > recursoA.capacidad * ajustes.UMBRAL_STOCK_DESCUBRIMIENTO &&
+        recursoB.cantidad > recursoB.capacidad * ajustes.UMBRAL_STOCK_DESCUBRIMIENTO) {
       this.descubrimientos.push(par);
 
       const nombre = generarNombre();
@@ -152,8 +134,8 @@ export class Lugar {
       nuevoRecurso.capacidad = Math.floor((recursoA.capacidad + recursoB.capacidad) / 2);
       nuevoRecurso.cantidad = Math.floor((recursoA.cantidad + recursoB.cantidad) / 4);
 
-      recursoA.cantidad = Math.floor(recursoA.cantidad * 0.75);
-      recursoB.cantidad = Math.floor(recursoB.cantidad * 0.75);
+      recursoA.cantidad = Math.floor(recursoA.cantidad * (1 - ajustes.COSTO_DESCUBRIMIENTO));
+      recursoB.cantidad = Math.floor(recursoB.cantidad * (1 - ajustes.COSTO_DESCUBRIMIENTO));
 
       this.recursos.push(nuevoRecurso);
       log(
@@ -164,8 +146,6 @@ export class Lugar {
 
   actualizar(t) {
     this.calcularTemperatura(t);
-    this.habitantes.forEach((habitante) => habitante.actualizar());
-    // producir recursos según tasa base + contribución de trabajadores
     this.recursos.forEach((recurso) => {
       const factor = this.calcularFactorTemperatura(recurso);
       const trabajadores = this.habitantes.filter((h) => h.trabajo === recurso);

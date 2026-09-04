@@ -77,12 +77,11 @@ function actualizarStats() {
 
 actualizarStats();
 
-const fps = 30;
-const frameDuration = 1000 / fps;
+const frameDuration = 1000 / ajustes.fps;
 let lastTime;
 let accumulator = 0;
 let animationId;
-let isPaused = true; // Track pause state
+let isPaused = true;
 
 function play() {
   if (isPaused) {
@@ -112,23 +111,18 @@ function tick() {
 }
 
 function loop(currentTime) {
-  // Calculate how much time has passed
   let deltaTime = currentTime - lastTime;
   lastTime = currentTime;
 
-  // Avoid spiral of death with large deltaTime
   if (deltaTime > 1000) deltaTime = frameDuration;
 
-  // Accumulate the time that hasn't been simulated yet
   accumulator += deltaTime;
 
-  // Simulate the game state in fixed steps
   while (accumulator >= frameDuration) {
     mundo.actualizar();
     accumulator -= frameDuration;
   }
 
-  // Calculate interpolation factor for smooth rendering
   const alpha = accumulator / frameDuration;
   mundo.dibujar(ctx, alpha);
   actualizarStats();

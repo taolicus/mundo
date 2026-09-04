@@ -39,7 +39,7 @@ export class Habitante {
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
     this.trabajo = null;
-    this.habilidad = numberoAleatorioEntre(5, 20) / 10;
+    this.habilidad = numberoAleatorioEntre(ajustes.habilidadMin, ajustes.habilidadMax) / ajustes.HABILIDAD_DIVISOR;
     this.generarNecesidadesBasicas();
   }
 
@@ -50,10 +50,9 @@ export class Habitante {
 
   generarRelaciones() {
     const otrosHabitantes = this.lugar.habitantes.filter((h) => h !== this);
-    const maxRelaciones = Math.ceil(otrosHabitantes.length * 0.1);
+    const maxRelaciones = Math.ceil(otrosHabitantes.length * ajustes.MAX_RELACIONES_RATIO);
     const cantidadRelaciones = numberoAleatorioEntre(0, maxRelaciones);
 
-    // Seleccionar habitantes aleatorios para relacionarse
     const habitantesRelacionados = [];
     while (
       habitantesRelacionados.length < cantidadRelaciones &&
@@ -61,25 +60,23 @@ export class Habitante {
     ) {
       const nuevaRelacion = elementoAleatorio(otrosHabitantes);
 
-      // Verificar que no tenga ya una relación con este habitante
       if (!this.relaciones.some((r) => r.con === nuevaRelacion)) {
         habitantesRelacionados.push(nuevaRelacion);
-        otrosHabitantes.splice(otrosHabitantes.indexOf(nuevaRelacion), 1); // Evitar duplicados
+        otrosHabitantes.splice(otrosHabitantes.indexOf(nuevaRelacion), 1);
       }
     }
 
     for (const habitanteRelacionado of habitantesRelacionados) {
       const tipoRelacion = elementoAleatorio(RELACION_HABITANTES);
-      const intensidad = numberoAleatorioEntre(1, 3);
+      const intensidad = numberoAleatorioEntre(ajustes.relacionIntensidadMin, ajustes.relacionIntensidadMax);
 
-      // Crear relación bidireccional
       this.agregarRelacion(habitanteRelacionado, tipoRelacion, intensidad);
       habitanteRelacionado.agregarRelacion(this, tipoRelacion, intensidad);
     }
   }
 
   generarNecesidad(recursos) {
-    if (umbral(0.05)) {
+    if (umbral(ajustes.PROB_NECESIDAD)) {
       const recurso = elementoAleatorio(recursos);
       const necesidad = new Necesidad(recurso);
       this.necesidades.push(necesidad);
@@ -91,7 +88,8 @@ export class Habitante {
 
   generarNecesidadesBasicas() {
     let recursosDisponibles = [...this.lugar.recursos];
-    for (let i = 0; i < ajustes.necesidadesPorHabitante(); i++) {
+    const cantidad = numberoAleatorioEntre(ajustes.necesidadesPorHabitanteMin, ajustes.necesidadesPorHabitanteMax);
+    for (let i = 0; i < cantidad; i++) {
       const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
       if (!recursoSeleccionado) break;
       recursosDisponibles = recursosDisponibles.filter(
@@ -99,8 +97,8 @@ export class Habitante {
       );
       const necesidad = new Necesidad(
         recursoSeleccionado,
-        numberoAleatorioEntre(1, 6),
-        numberoAleatorioEntre(1, 6)
+        numberoAleatorioEntre(ajustes.necesidadCantidadMin, ajustes.necesidadCantidadMax),
+        numberoAleatorioEntre(ajustes.necesidadFrecuenciaMin, ajustes.necesidadFrecuenciaMax)
       );
       this.necesidades.push(necesidad);
     }
@@ -108,7 +106,7 @@ export class Habitante {
 
   asignarTrabajo() {
     if (!this.lugar || this.lugar.recursos.length === 0) return;
-    if (this.trabajo && umbral(0.9)) return;
+    if (this.trabajo && umbral(ajustes.PROB_RETENER_TRABAJO)) return;
 
     const recurso = elementoAleatorio(this.lugar.recursos);
     this.trabajo = recurso;
@@ -145,7 +143,6 @@ export class Habitante {
   }
 
   actualizar() {
-    // necesidades
     if (this.lugar) {
       this.necesidades.forEach((necesidad) => {
         necesidad.ultimoConsumo++;
@@ -160,18 +157,15 @@ export class Habitante {
             log(
               `${this.lugar.nombre} necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
             );
-            // consecuencias de no satisfacer su necesidad
-            // ir a buscar recursos a otros lugares (suplantar necesidades?: cambiar el recurso de una necesidad por otro recurso de otro lugar, si el recurso no esta disponible por mucho tiempo)
           }
         }
       });
     }
 
-    //viajes
     if (this.ruta) {
       this.viajar();
     } else if (this.lugar) {
-      if (this.lugar.rutas.length > 0 && umbral(0.001)) {
+      if (this.lugar.rutas.length > 0 && umbral(ajustes.PROB_VIAJAR)) {
         const ruta = elementoAleatorio(this.lugar.rutas);
         this.iniciarViaje(ruta);
       }
