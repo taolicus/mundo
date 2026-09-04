@@ -1,13 +1,12 @@
 export const settings = {
   placeCount: 8,
-  resourcesPerPlaceMin: 2,
-  resourcesPerPlaceMax: 6,
   drawSize: 30,
 
   tempBaseMax: 30,
   annualAmplitude: 15,
   dailyAmplitude: 5,
   yCooling: 0.05,
+  equatorY: 500,
   hoursPerDay: 24,
   daysPerYear: 360,
 
@@ -27,13 +26,6 @@ export const settings = {
     mineral: { weight: 3, rateMin: 0, rateMax: 1, intervalMultiplier: 20 },
   },
   productionTickInterval: 24,
-  temperatureSensitivity: 0.01,
-  optimalTemp: 15,
-  temperatureSensitivityProb: 0.3,
-  sensitivityByType: {
-    organic: 0.4,
-    mineral: 0.2,
-  },
 
   dwellersPerPlaceMin: 10,
   dwellersPerPlaceMax: 30,

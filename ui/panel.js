@@ -121,7 +121,7 @@ function renderPlace(place) {
       return (
         row(r.name, `${r.amount} / ${r.capacity}`) +
         bar(ratio) +
-        row("type", `${r.type} · rate ${r.genRate} · temp ${r.temperatureSensitive ? "yes" : "no"}`) +
+        row("type", `${r.type} · rate ${r.genRate}`) +
         "<br>"
       );
     })

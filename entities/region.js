@@ -6,6 +6,7 @@ import {
   log,
 } from "../core/utils.js";
 import { drawCatalogSubset } from "../core/resources.js";
+import { Climate } from "../core/environment.js";
 import { newDweller } from "./population.js";
 
 class Resource {
@@ -16,7 +17,6 @@ class Resource {
     this.productionInterval = def.productionInterval;
     this.capacity = def.capacity;
     this.amount = Math.round(this.capacity * settings.initialStockRatio);
-    this.temperatureSensitive = def.temperatureSensitive;
     this.nextProductionTick = tick + randomIntBetween(0, this.productionInterval);
   }
 }
@@ -53,12 +53,16 @@ export class Region {
     this.name = name;
     this.x = x;
     this.y = y;
-    this.temperature = 0;
+    this.climate = new Climate(this);
     this.resources = [];
     this.population = [];
     this.routes = [];
     this.catalog = catalog;
     this.generateResources(catalog, tick);
+  }
+
+  get temperature() {
+    return this.climate.temperature;
   }
 
   generateResources(catalog, tick = 0) {
@@ -78,24 +82,6 @@ export class Region {
     }
   }
 
-  calcTemperature(t, equatorY = 500) {
-    const day = t / settings.hoursPerDay;
-
-    const distEquator = Math.abs(equatorY - this.y);
-    const base =
-      settings.tempBaseMax - distEquator * settings.yCooling;
-
-    const annual =
-      Math.sin((2 * Math.PI * day) / settings.daysPerYear) *
-      settings.annualAmplitude;
-
-    const daily =
-      Math.sin((2 * Math.PI * (t - 6)) / settings.hoursPerDay) *
-      settings.dailyAmplitude;
-
-    this.temperature = base + annual + daily;
-  }
-
   consumeResource(resource, amount) {
     if (!this.resources.includes(resource)) return false;
     resource.amount -= amount;
@@ -109,11 +95,6 @@ export class Region {
     return true;
   }
 
-  temperatureFactor(resource) {
-    if (!resource.temperatureSensitive) return 1;
-    return 1 + (this.temperature - settings.optimalTemp) * settings.temperatureSensitivity;
-  }
-
   attemptBirth(t) {
     if (this.population.length >= settings.maxDwellersPerPlace) return;
     if (!chance(settings.birthRate)) return;
@@ -124,22 +105,13 @@ export class Region {
   }
 
   update(t) {
-    this.calcTemperature(t);
+    this.climate.update(t);
     this.resources.forEach((resource) => {
       if (t < resource.nextProductionTick) return;
       resource.nextProductionTick = t + resource.productionInterval;
-
-      const factor = this.temperatureFactor(resource);
-      const amount = Math.max(
-        0,
-        Math.floor(resource.genRate * factor)
-      );
-      if (amount > 0) {
-        this.produceResource(resource, amount);
-        log(
-          `${this.name} produced ${amount} new units of ${resource.name}`
-        );
-      }
+      if (resource.genRate <= 0) return;
+      this.produceResource(resource, resource.genRate);
+      log(`${this.name} produced ${resource.genRate} new units of ${resource.name}`);
     });
     this.attemptBirth(t);
   }

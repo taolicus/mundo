@@ -2,7 +2,6 @@ import { settings } from "./settings.js";
 import {
   generateName,
   randomIntBetween,
-  chance,
 } from "./utils.js";
 
 function makeDef(type, cfg) {
@@ -14,9 +13,6 @@ function makeDef(type, cfg) {
       settings.productionTickInterval * (cfg.intervalMultiplier ?? 1)
     ),
     capacity: randomIntBetween(settings.capacityBaseMin, settings.capacityBaseMax),
-    temperatureSensitive: chance(
-      settings.sensitivityByType[type] ?? settings.temperatureSensitivityProb
-    ),
   };
 }
 

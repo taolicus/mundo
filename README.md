@@ -14,39 +14,40 @@ We deliberately keep systems small and honest. Features only earn their complexi
 
 ## Target architecture — layers
 
-The project is reorganizing into three top-level directories by *concern* (layers, not feature-per-directory — intentional, since simulation is cross-cutting):
+The project is organized into three top-level directories by *concern* (layers, not feature-per-directory — intentional, since simulation is cross-cutting):
 
 ```
 core/            — pure simulation + shared infra. NO DOM. Node-testable.
   settings.js    — centralized config
   utils.js       — pure helpers (randomness, names, distance, weighted pick)
-  events.js      — pub/sub event bus (thin)
-  logging.js     — consumes events, behind a feature flag
-  engine.js      — THE engine. Owns time/tick. Drives world.update(tick).
-                   Pure JS; orchestrates the UI as a component, does not call RAF.
-entities/        — the nouns; owned/managed by core engine
-  world.js       — World entity: holds regions/dwellers/travelers; calls each entity's
-                   update(tick). Has NO loop of its own.
-  region.js      — Region, Resource, Route
-  dweller.js     — Dweller, Need
-  population.js  — Population (aggregate/statistics)
+  resources.js   — shared resource catalog (makeCatalog, drawCatalogSubset)
+  environment.js — Climate: owns per-region temperature (cosmetic readout)
+  behaviours/    — behaviour implementations, uniform perform(dweller, ctx) interface
+    travel.js    — travel behaviour (start/step + settle rest on arrival)
+entities/        — the nouns
+  world.js       — World entity: holds regions/dwellers/travelers and its own tick;
+                   calls each entity's update(tick). Has NO loop of its own.
+  region.js      — Region, Resource, Route (delegates climate to core/environment)
+  dweller.js     — Dweller, Need hierarchy (survival/exploration/gather)
+  population.js  — helpers to create/populate dwellers
 ui/              — browser concerns (canvas/DOM). The only layer touching browser APIs.
-  index.html     — shell: canvas + top bar (day, population) + inspection panel
+  index.html     — (repo root) canvas + top bar + inspection panel
   styles.css
-  app.js         — browser adapter: owns RAF, canvas, DOM/input/stats.
-                   Calls engine.advance() each frame and renders on demand.
+  app.js         — browser adapter: owns RAF + fixed-timestep accumulator, canvas,
+                   DOM/input/stats, hit-testing. Decides how many ticks per frame;
+                   calls world.update() and renders on demand.
   render.js      — canvas drawing
   panel.js       — inspection panel
 ```
 
 ### Locked-in boundary decisions
 
-- **Engine owns time.** `core/engine.js` holds the `tick` counter and decides pacing (fixed timestep); it passes `tick` into `world.update(tick)`. World is a passive state holder that calls its entities' update methods — it has no loop.
-- **Engine owns UI (orchestration); UI owns RAF (mechanism).** Core engine is pure JS and drives the UI as a component (decides when/what to show + pace). The `ui` layer is the browser adapter and is the *only* place that calls browser APIs (RAF, canvas, DOM). The UI's RAF loop calls `engine.advance()`, and core decides how many sim ticks to run. This keeps core testable and UI a thin adapter.
+- **Time is owned by `World`.** `World` self-contains its `tick` counter and increments it each `update()` call. Pacing — how many sim ticks run per real second — lives in the UI adapter (`ui/app.js` fixed-timestep accumulator at `settings.fps`). There is deliberately no separate engine module: the sim is driven by any caller that repeatedly calls `world.update()` (the browser adapter via RAF, or a headless node script). If pacing needs grow (deterministic batch runs, multiple sims, a headless CLI), extract `core/engine.js` to own tick+pacing and have `world.update(tick)` accept the passed tick.
+- **UI owns RAF (mechanism); core stays pure JS.** The `ui` layer is the *only* place that calls browser APIs (RAF, canvas, DOM). Core/test code advances the sim by calling `world.update()` directly and reading state — no RAF, fully Node-testable.
 - **Import graph is one-way:** `ui → core → entities`, never the reverse.
-- **`habitants` array property** will be renamed to `population` as part of the terminology transition.
+- **`habitants` → `population` rename applied.**
 
-> The files have been moved into these directories; the target architecture above is now the live layout. `ui/index.html` was moved to the repo root as `index.html` (referencing `./ui/app.js` + `./ui/styles.css`) because Acode's server does not serve files outside the opened directory.
+> `ui/index.html` lives at the repo root as `index.html` (referencing `./ui/app.js` + `./ui/styles.css`) because Acode's server does not serve files outside the opened directory.
 
 ## Current behavior
 
@@ -77,11 +78,11 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - Exploration replaced the passive `exploreProb` dice roll; dwellers track `visitedPlaceNames` and prefer unvisited route destinations.
 - `Dweller.decideBehaviour` gathers each need's urgency-weighted intent and dispatches by behaviour id — the seam future need/behaviour types plug into.
 
-### Module: Environment (extract + simplify) — **not started**
-- Create a separate **environment module** owning climate (temperature) per region, extendable to weather/seasons later.
-- **Region delegates** temperature to it.
-- **Remove the temperature-sensitive resource multiplier** — regions produce resources purely by `genRate`.
-- Currently temperature lives inline in `Region` and still multiplies production (`region.js:calcTemperature`/`temperatureFactor`/`update`).
+### Module: Environment (extract + simplify) — ✅ done
+- A separate **environment module** exists: `core/environment.js` (`Climate`) owns temperature per region; `Region` delegates (`region.climate.update(t)`), exposing temperature via a getter for UI coloring/display only.
+- **The temperature-sensitive resource multiplier is removed** — regions produce resources purely by `genRate`. Temperature is now a cosmetic readout (region color + panel), decoupled from simulation outcomes.
+- Cleaned up associated dead settings (`resourcesPerPlaceMin/Max`, `temperatureSensitivity`, `optimalTemp`, `temperatureSensitivityProb`, `sensitivityByType`); added `equatorY` to configure the climate baseline.
+- Extendable to weather/seasons later by growing `Climate`.
 
 ### Births: simple rate on Population
 - ✅ **Done.** Births come from a flat attribute (`settings.birthRate`, chance per region per tick), capped by `settings.maxDwellersPerPlace`. No gender/demographics; the old surplus + adult-age-gated mechanic was removed. Model population dynamics properly later.

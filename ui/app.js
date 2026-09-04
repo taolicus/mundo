@@ -1,8 +1,17 @@
-import { getRegion } from "../core/utils.js";
+import { distance } from "../core/utils.js";
 import { settings } from "../core/settings.js";
 import { World } from "../entities/world.js";
 import { drawWorld, buildRoutesPath } from "./render.js";
 import { showPlace, updatePanel, hidePanel, setWorld } from "./panel.js";
+
+function getRegion(x, y, places) {
+  for (const place of places) {
+    if (distance(x, y, place.x, place.y) <= settings.drawSize) {
+      return place;
+    }
+  }
+  return null;
+}
 
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");

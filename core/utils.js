@@ -1,5 +1,3 @@
-import { settings } from "./settings.js";
-
 export function randomIntBetween(min, max) {
   const minCeiled = Math.ceil(min);
   const maxFloored = Math.floor(max);
@@ -26,15 +24,6 @@ export function distance(x1, y1, x2, y2) {
 
 export function calculateDistance(placeA, placeB) {
   return distance(placeA.x, placeA.y, placeB.x, placeB.y);
-}
-
-export function getRegion(x, y, places) {
-  for (const place of places) {
-    if (distance(x, y, place.x, place.y) <= settings.drawSize) {
-      return place;
-    }
-  }
-  return null;
 }
 
 export function randomIndex(collection) {
