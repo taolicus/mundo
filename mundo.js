@@ -106,17 +106,17 @@ export class Mundo {
   colorTemperatura(temp) {
     let r, g, b;
     if (temp <= ajustes.TEMP_FRIO_MAX) {
-      r = 68; g = 136; b = 255;
+      r = 255; g = 255; b = 255;
     } else if (temp <= ajustes.TEMP_TEMPLADO_MAX) {
       const t = (temp - ajustes.TEMP_FRIO_MAX) / (ajustes.TEMP_TEMPLADO_MAX - ajustes.TEMP_FRIO_MAX);
-      r = Math.round(68 + (255 - 68) * t);
-      g = Math.round(136 + (255 - 136) * t);
-      b = Math.round(255 + (255 - 255) * t);
+      r = Math.round(255 + (0 - 255) * t);
+      g = Math.round(255 + (255 - 255) * t);
+      b = Math.round(255 + (0 - 255) * t);
     } else {
       const t = Math.min(1, (temp - ajustes.TEMP_TEMPLADO_MAX) / ajustes.TEMP_CALUROSO_RANGO);
-      r = Math.round(255 + (255 - 255) * t);
-      g = Math.round(255 + (68 - 255) * t);
-      b = Math.round(255 + (68 - 255) * t);
+      r = Math.round(0 + (255 - 0) * t);
+      g = Math.round(255 + (255 - 255) * t);
+      b = Math.round(0 + (0 - 0) * t);
     }
     return `rgb(${r},${g},${b})`;
   }
