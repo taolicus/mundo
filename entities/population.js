@@ -12,12 +12,6 @@ export function populatePlaces(places) {
       place.habitants.push(newDweller(place, 0));
     }
   });
-
-  places.forEach((place) => {
-    place.habitants.forEach((dweller) => {
-      dweller.generateRelations();
-    });
-  });
 }
 
 export function newDweller(place, tick) {

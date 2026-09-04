@@ -6,8 +6,6 @@ import {
   log,
 } from "../core/utils.js";
 
-const RELATION_TYPES = ["family", "friendship", "colleague", "acquaintance"];
-
 class Need {
   constructor(resource, amount, frequency = 0) {
     this.resource = resource;
@@ -15,14 +13,6 @@ class Need {
     this.lastConsumption = 0;
     this.frequency = frequency;
     this.shortageAnnounced = false;
-  }
-}
-
-class Relation {
-  constructor(type, with_, intensity) {
-    this.type = type;
-    this.with_ = with_;
-    this.intensity = intensity;
   }
 }
 
@@ -37,7 +27,6 @@ export class Dweller {
     this.maxAge = randomIntBetween(settings.maxAgeMin, settings.maxAgeMax);
     this.nextYear = tick + this.nextBirthday();
     this.needs = [];
-    this.relations = [];
     this.route = null;
     this.travelProgress = 0;
     this.totalTravelTime = 0;
@@ -64,39 +53,6 @@ export class Dweller {
 
   knows(name) {
     return this.knowledge.has(name);
-  }
-
-  addRelation(dweller, type, intensity) {
-    const relation = new Relation(type, dweller, intensity);
-    this.relations.push(relation);
-  }
-
-  generateRelations() {
-    if (!this.place) return;
-    const others = this.place.habitants.filter((h) => h !== this);
-    const maxRelations = Math.ceil(others.length * settings.maxRelationsRatio);
-    const count = randomIntBetween(0, maxRelations);
-
-    const related = [];
-    while (
-      related.length < count &&
-      others.length > 0
-    ) {
-      const pick = randomElement(others);
-
-      if (!this.relations.some((r) => r.with_ === pick)) {
-        related.push(pick);
-        others.splice(others.indexOf(pick), 1);
-      }
-    }
-
-    for (const other of related) {
-      const relType = randomElement(RELATION_TYPES);
-      const intensity = randomIntBetween(settings.relationIntensityMin, settings.relationIntensityMax);
-
-      this.addRelation(other, relType, intensity);
-      other.addRelation(this, relType, intensity);
-    }
   }
 
   localEdibleResources() {
@@ -173,9 +129,6 @@ export class Dweller {
 
     if (this.place) {
       this.place.habitants = this.place.habitants.filter((h) => h !== this);
-      this.place.habitants.forEach((h) => {
-        h.relations = h.relations.filter((r) => r.with_ !== this);
-      });
     }
     if (this.route) {
       this.route.removeTraveler(this);

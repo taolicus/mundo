@@ -48,9 +48,6 @@ export const settings = {
   needAmountMax: 2,
   needFrequencyMin: 24,
   needFrequencyMax: 72,
-  maxRelationsRatio: 0.1,
-  relationIntensityMin: 1,
-  relationIntensityMax: 3,
 
   minDistanceBetweenPlaces: 200,
   maxPlacementAttempts: 100,

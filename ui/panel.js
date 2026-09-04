@@ -101,12 +101,6 @@ function renderDweller(dweller) {
         .join("")
     : "";
 
-  const relations = dweller.relations.length
-    ? dweller.relations
-        .map((r) => row(r.type, r.with_.name))
-        .join("")
-    : "";
-
   const back = backPlace
     ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${backPlace.name}</a><br>`
     : "";
@@ -118,9 +112,6 @@ function renderDweller(dweller) {
       row("place", dweller.place ? dweller.place.name : "traveling") +
       (needs
         ? "<br><span style='color:#888'>needs</span><br>" + needs
-        : "") +
-      (relations
-        ? "<br><span style='color:#888'>relations</span><br>" + relations
         : "")
   );
 
