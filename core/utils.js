@@ -72,4 +72,4 @@ export function chance(pct) {
   return Math.random() < pct;
 }
 
-export const log = console.log;
+export const log = () => {};
