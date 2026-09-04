@@ -3,7 +3,6 @@ import {
   randomIntBetween,
   generateName,
   calculateDistance,
-  log,
 } from "../core/utils.js";
 import { Region, Route } from "./region.js";
 import { populatePlaces } from "./population.js";
@@ -72,7 +71,6 @@ export class World {
 
   update() {
     this.tick++;
-    log("T:", this.tick);
 
     this.places.forEach((place) => place.update(this.tick));
 

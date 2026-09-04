@@ -56,13 +56,18 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - Each **Dweller** has typed **Needs** (behavioral drivers). **survival** needs target resources it *knows* and that exist locally (only `organic` type is consumed); unmet survival needs drain health, and zero health dies of malnutrition. Each dweller also has an **exploration** need that drives periodic travel to unvisited places. Dwellers age and die.
 - Dwellers **travel** along routes as a *behaviour* driven by needs: a **survival** need (travels to seek a resource it knows exists elsewhere) or the **exploration** need (travels out of curiosity, preferring unvisited places). Each travel carries a **reason** shown in the log (`Sah left Kal to seeking Nwo` / `...to out of curiosity`), providing a minimal narrative read.
 - **Births** use a flat rate (`settings.birthRate` chance per region per tick), capped per region by `settings.maxDwellersPerPlace`.
+- **Structured events** (`core/events.js`): `World`/`Region`/`Dweller`/behaviours emit typed records (`birth`, `death`, `travel`, `arrive`, `gossip`, `tend`) into a shared `EventLog` (bounded, `events.recent`/`recentFor`/`count`). `events.debug` is `false` by default; the UI turns it on with `?debug` in the URL or `window.__DEBUG__`, which logs each event to the console. Events are the inspection surface for emergent behavior — narrative stays in the observer's head.
+- **Partial-knowledge gossip:** `chat` shares a random subset (`gossipShareMin/Max`) of knowledge with one random co-dweller, so awareness spreads organically and *variably* — how much you know depends on who you happened to talk to.
+- **Personality traits:** `homebody` (0..1, rolled once) makes a dweller rest *longer* at its origin (`1 + homebody`) and *shorter* away from it (`1 − 0.5·homebody`) when settling after travel. `tastes`, `isCurious`, and `homebody` together give dwellers individual behaviour, not just identical rules.
+- **Homing drive:** the `OriginNeed` periodically fires *only while away from the origin*, routing the dweller home; arriving there resets the need. Wanderers drift back.
+- **Tending behaviour:** the `TendNeed` periodically boosts the most-depleted local resource it knows (`produceResource`), a light dweller-driven production in the old "*stay in the world*" natural model's place.
 
 ## Work checklist
 
 ### Module: Behavior (core rework)
 - ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` gathers intents and dispatches to the behaviour registry.
 - ✅ **Weighted urgency competition done.** Each need reports an `urgency(dweller)`; `decideBehaviour` weighted-picks among all pressing needs' intents. Survival ramps its urgency while a shortage persists and multiplies it by `survivalWeight:3` — heavily weighted but *competitive* (validated: urgency 1.0 → survival wins ~75%, urgency 0.5 → ~60%, urgency 2.0 → ~85%; below `behaviourThreshold` no trip). An intent that loses competition is *not* reset, so it stays pending.
-- ✅ **Travel-reason rebalance + pacing done (leisure rare, movement visible).** `ExplorationNeed` gates its intent at a high `explorationThreshold` (0.97, only fires near full maturity) and is a **stable per-dweller trait** (`isCurious` rolled once at construction, `chance(explorationProb:0.35)`) — not re-rolled per travel. `onArrival` no longer wipes needs (needs are place-agnostic now that hunger is substitutable), so wanderlust and hunger accumulate across travel instead of resetting. To keep movement visible without perpetual motion, dwellers get a **settle rest on arrival** (`settlePeriodMin/Max`), travel is faster (`travelSpeedDivisor: 3`), and gather fires every 240-720 ticks. Sampled over 40k ticks: **0 deaths**, population grows, **curiosity ~2.8%** of trips, resources ~97% — travel is mostly for resources with leisure as a rare occasion, and most dwellers visibly rest/settle between trips.
+- ✅ **Travel-reason rebalance + pacing done (leisure rare, movement visible).** `ExplorationNeed` gates its intent at a high `explorationThreshold` (0.97, only fires near full maturity) and is a **stable per-dweller trait** (`isCurious` rolled once at construction, `chance(explorationProb:0.35)`) — not re-rolled per travel. `onArrival` no longer wipes needs (needs are place-agnostic now that hunger is substitutable), so wanderlust and hunger accumulate across travel instead of resetting. To keep movement visible without perpetual motion, dwellers get a **settle rest on arrival** (`settlePeriodMin/Max`), travel is faster (`travelSpeedDivisor: 3`), and gather fires every 360-900 ticks. Sampled over 40k ticks: **0 deaths**, population grows, **curiosity ~2.8%** of trips, resources ~97% — travel is mostly for resources with leisure as a rare occasion, and most dwellers visibly rest/settle between trips.
 - **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
 - ✅ **Traversal mechanics refactor done.** `start`/`step` (depart, advance progress, arrive) moved out of `Dweller` into `core/behaviours/travel.js`; `travel.perform` delegates to `start`. `Dweller` keeps only travel *state* (`route`/`travelProgress`/`elapsedTravelTime`/`totalTravelTime`) plus an `onArrival(destination)` lifecycle hook (learn place + regenerate needs).
 - **Next (planned):**
@@ -71,7 +76,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ### Gather behaviour — ✅ done
 - A `GatherNeed` (type `gather`) drives travel to a **known place** (visited) that carries a resource *name* absent from the current place; reason `to gather <name>`.
 - Distinct from exploration (curiosity, unvisited) and survival (consume-when-short). Urgency ramps like exploration; weight `gatherWeight:1.5` lands between idle curiosity (1.0) and severe survival (up to ~9) in the weighted competition.
-- Sampled ratio in an 8k-tick run: ~79 gather trips vs ~2733 curiosity (a deliberate, rarer pull).
+- (Sampling is superseded by the current short-smoke metrics in `test/`; see below.)
 
 ### Module: Needs (generalize)
 - ✅ **Partially done.** `Need` is now a typed **behavioral driver** hierarchy: `SurvivalNeed` (consume known local resource on a shortage timer) and `ExplorationNeed` (periodic drive to visit unvisited places) are implemented and each owns its `tick` + `behaviour(intent)` logic. `collection`/`social` reserved (not built).
@@ -108,6 +113,16 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - ✅ **Done:** single toggle Play/Pause (`#toggle`).
 - ✅ **Done:** menu button (☰) with **Regions** list and **Dwellers** list (incl. travellers); clicking an item opens the same info as the corresponding canvas click; dweller details show current action/reason; place field shows `origin → destination` while travelling.
 - ✅ **Reverted:** per-traveler canvas action labels (too cluttered) — reasons shown on the dweller panel instead.
+
+## Tests
+
+- Node's built-in test runner, no dependencies: run **`node --test`** from the repo root.
+- `test/utils.test.js` — randomness/distance/name helpers incl. `randomSample` bounds.
+- `test/environment.test.js` — `Climate` (temp range, cosmetic-only).
+- `test/dweller.test.js` — need hierarchy, weighted competition, survival seeking (fix: gated on no local edible food), gather targeting, gossip subsetting, **tend** (most-depleted known local resource, no overflow), **homing** (routes toward origin, dormant at origin, resets on origin arrival), settle/`homebody` stability, death/age.
+- `test/travel.test.js` — departure/arrival, mid-route, multi-hop selection, **homebody settle scaling**.
+- `test/world.test.js` — world invariants over a 4k-tick horizon: travellers/residents buckets disjoint, all alive, never-empty world, gather fires, `endShare >= 0.5` at origin.
+- Expectations: green, deterministic-ish (randomness seeded per test run by the runner), typically run 3× for confidence.
 
 ## Repository / sharing notes
 

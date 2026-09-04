@@ -6,6 +6,7 @@ import {
   distance,
   calculateDistance,
   randomElement,
+  randomSample,
   weightedPick,
   chance,
   generateName,
@@ -34,6 +35,18 @@ test("calculateDistance works on {x,y} objects", () => {
 test("randomElement of a singleton returns that element", () => {
   const arr = ["only"];
   assert.equal(randomElement(arr), "only");
+});
+
+test("randomSample returns unique items up to the count", () => {
+  for (let i = 0; i < 50; i++) {
+    const s = randomSample([1, 2, 3, 4, 5], 3);
+    assert.equal(s.length, 3);
+    assert.equal(new Set(s).size, 3);
+    const allowed = new Set([1, 2, 3, 4, 5]);
+    assert.ok(s.every((x) => allowed.has(x)));
+  }
+  assert.equal(randomSample([1, 2, 3], 10).length, 3);
+  assert.equal(randomSample([], 3).length, 0);
 });
 
 test("weightedPick of a single entry returns it", () => {

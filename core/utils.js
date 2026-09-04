@@ -34,6 +34,15 @@ export function randomElement(collection) {
   return collection[randomIndex(collection)];
 }
 
+export function randomSample(collection, count) {
+  const pool = [...collection];
+  const out = [];
+  while (out.length < count && pool.length > 0) {
+    out.push(pool.splice(randomIndex(pool), 1)[0]);
+  }
+  return out;
+}
+
 export function weightedPick(entries) {
   const total = entries.reduce((sum, [_, weight]) => sum + weight, 0);
   let r = Math.random() * total;
@@ -47,5 +56,3 @@ export function weightedPick(entries) {
 export function chance(pct) {
   return Math.random() < pct;
 }
-
-export const log = () => {};

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { Dweller } from "../entities/dweller.js";
+import { tend } from "../core/behaviours/tend.js";
 import { settings } from "../core/settings.js";
 
 function res(name, type = "organic", amount = 10) {
@@ -22,6 +23,9 @@ function makePlace(name, resources = []) {
     population: [],
     consumeResource(r, amount) {
       r.amount = Math.max(0, r.amount - amount);
+    },
+    produceResource(r, amount) {
+      r.amount = Math.min(r.amount + amount, r.capacity);
     },
   };
 }
@@ -138,6 +142,90 @@ test("shareKnowledgeWith transfers knowledge and suppliers", () => {
   da.shareKnowledgeWith(db);
   assert.ok(db.knows("ronlyAtA"));
   assert.ok(db.suppliers.get("ronlyAtA").has(a));
+});
+
+test("shareKnowledgeWith(count) shares a bounded subset", () => {
+  const a = makePlace("A", [res("r1"), res("r2"), res("r3")]);
+  const b = makePlace("B", [res("r4")]);
+  const d = new Dweller("D", a, a, 0);
+  d.learnPlace(b); // d knows r1..r4
+  const peer = new Dweller("P", a, a, 0); // peer knows r1..r3
+  const shared = d.shareKnowledgeWith(peer, 2);
+  assert.equal(shared.length, 2);
+  const allowed = new Set([...d.knowledge]);
+  assert.ok(shared.every((name) => allowed.has(name)));
+  assert.ok(peer.knowledge.size >= 3 && peer.knowledge.size <= 5);
+});
+
+test("tend need targets the most-depleted known local resource", () => {
+  const p = makePlace("A", [res("r1", "organic", 2), res("r2", "organic", 8)]);
+  const d = new Dweller("D", p, p, 0);
+  const need = d.needs.find((n) => n.type === "tend");
+  need.lastEvent = need.frequency;
+  const intent = need.behaviour(d);
+  assert.ok(intent, "expected a tend intent");
+  assert.equal(intent.behaviour, "tend");
+  assert.equal(intent.resource.name, "r1");
+  const before = intent.resource.amount;
+  tend.perform(d, intent, 1);
+  assert.equal(intent.resource.amount, before + intent.amount);
+});
+
+test("tending never overflows resource capacity", () => {
+  const p = makePlace("A", [res("r1", "organic", 10)]);
+  p.resources[0].capacity = 10;
+  p.resources[0].amount = 9;
+  const d = new Dweller("D", p, p, 0);
+  const need = d.needs.find((n) => n.type === "tend");
+  need.lastEvent = need.frequency;
+  const intent = need.behaviour(d);
+  tend.perform(d, intent, 1);
+  assert.equal(p.resources[0].amount, 10);
+});
+
+test("homing need routes a dweller toward its origin", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r2")]);
+  const ba = { origin: b, destination: a };
+  b.routes.push(ba);
+  const d = new Dweller("D", a, b, 0); // lives in B, origin A
+  const need = d.needs.find((n) => n.type === "homing");
+  need.lastEvent = need.frequency;
+  const intent = need.behaviour(d);
+  assert.ok(intent, "expected a homing intent");
+  assert.equal(intent.behaviour, "travel");
+  assert.equal(intent.reason, "heading home");
+  assert.equal(intent.route.destination, a);
+});
+
+test("homing is dormant at the origin", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r2")]);
+  const d = new Dweller("D", a, a, 0);
+  const need = d.needs.find((n) => n.type === "homing");
+  need.lastEvent = need.frequency;
+  assert.equal(need.behaviour(d), null);
+});
+
+test("arriving at the origin resets the homing need", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r2")]);
+  const d = new Dweller("D", a, b, 0);
+  const need = d.needs.find((n) => n.type === "homing");
+  need.lastEvent = 7;
+  d.onArrival(a, 100);
+  assert.equal(need.lastEvent, 0);
+});
+
+test("homebody trait is a stable 0..1 personality", () => {
+  const a = makePlace("A", [res("r1")]);
+  const d1 = new Dweller("D", a, a, 0);
+  const h1 = d1.homebody;
+  for (let i = 0; i < 20; i++) {
+    d1.update(i);
+    assert.equal(d1.homebody, h1);
+  }
+  assert.ok(d1.homebody >= 0 && d1.homebody <= 1);
 });
 
 test("ageOneYear advances once per year boundary", () => {

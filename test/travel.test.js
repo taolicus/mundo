@@ -74,3 +74,31 @@ test("travel step mid-route keeps the dweller travelling", () => {
     assert.ok(d.elapsedTravelTime > 0);
   }
 });
+
+test("homebodies rest shorter away from and longer at their origin", () => {
+  const a = makePlace("A", [{ name: "r1", type: "organic", amount: 10, capacity: 100 }], 0, 0);
+  const b = makePlace("B", [{ name: "r2", type: "organic", amount: 10, capacity: 100 }], 100, 0);
+  const ab = new Route(a, b);
+  a.routes.push(ab);
+
+  const d1 = new Dweller("D1", a, a, 0); // origin A, heads to B (away)
+  d1.homebody = 1;
+  a.population.push(d1);
+  travel.perform(d1, { route: ab, reason: "to gather r2" }, 1);
+  d1.elapsedTravelTime = d1.totalTravelTime - 1;
+  travel.step(d1, 1);
+  assert.equal(d1.place, b);
+  const awayCap = Math.round(settings.settlePeriodMax * (1 - 0.5 * 1));
+  assert.ok(d1.settleTicksRemaining >= 1 && d1.settleTicksRemaining <= awayCap);
+
+  const d2 = new Dweller("D2", b, a, 0); // origin B, heads home to B
+  d2.homebody = 1;
+  a.population.push(d2);
+  travel.perform(d2, { route: ab, reason: "heading home" }, 1);
+  d2.elapsedTravelTime = d2.totalTravelTime - 1;
+  travel.step(d2, 1);
+  assert.equal(d2.place, b);
+  const homeFloor = Math.round(settings.settlePeriodMin * (1 + 1));
+  const homeCeil = Math.round(settings.settlePeriodMax * (1 + 1));
+  assert.ok(d2.settleTicksRemaining >= homeFloor && d2.settleTicksRemaining <= homeCeil);
+});

@@ -1,14 +1,15 @@
 import { randomIntBetween } from "../../core/utils.js";
 import { settings } from "../../core/settings.js";
+import { events } from "../../core/events.js";
 
 export const travel = {
   id: "travel",
 
-  perform(dweller, ctx) {
-    this.start(dweller, ctx);
+  perform(dweller, ctx, t) {
+    this.start(dweller, ctx, t);
   },
 
-  start(dweller, { route, reason }) {
+  start(dweller, { route, reason }, t) {
     dweller.route = route;
     dweller.activity = reason;
     dweller.place.population = dweller.place.population.filter((h) => h !== dweller);
@@ -17,9 +18,16 @@ export const travel = {
     dweller.totalTravelTime = route.travelTime;
     dweller.elapsedTravelTime = 0;
     dweller.travelProgress = 0;
+    events.emit("travel", {
+      t,
+      dweller: dweller.name,
+      reason,
+      from: route.origin.name,
+      to: route.destination.name,
+    });
   },
 
-  step(dweller) {
+  step(dweller, t) {
     dweller.elapsedTravelTime++;
     dweller.travelProgress = dweller.elapsedTravelTime / dweller.totalTravelTime;
     if (dweller.elapsedTravelTime < dweller.totalTravelTime) return;
@@ -28,11 +36,16 @@ export const travel = {
     dweller.place = destination;
     destination.population.push(dweller);
     dweller.route = null;
-    dweller.activity = "resting";
-    dweller.settleTicksRemaining = randomIntBetween(
+    const baseSettle = randomIntBetween(
       settings.settlePeriodMin,
       settings.settlePeriodMax
     );
-    dweller.onArrival(destination);
+    const restFactor =
+      destination === dweller.origin
+        ? 1 + dweller.homebody
+        : 1 - 0.5 * dweller.homebody;
+    dweller.settleTicksRemaining = Math.max(1, Math.round(baseSettle * restFactor));
+    dweller.activity = "resting";
+    dweller.onArrival(destination, t);
   },
 };

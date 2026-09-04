@@ -2,14 +2,17 @@ import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   randomElement,
+  randomSample,
   weightedPick,
   chance,
-  log,
 } from "../core/utils.js";
+import { events } from "../core/events.js";
 import { travel as travelBehaviour } from "../core/behaviours/travel.js";
+import { tend as tendBehaviour } from "../core/behaviours/tend.js";
 
 const behaviours = {
   travel: travelBehaviour,
+  tend: tendBehaviour,
 };
 
 class Need {
@@ -224,6 +227,55 @@ class GatherNeed extends PeriodicNeed {
   }
 }
 
+class TendNeed extends PeriodicNeed {
+  constructor(frequency) {
+    super("tend", frequency);
+    this.amount = randomIntBetween(settings.tendAmountMin, settings.tendAmountMax);
+  }
+
+  weight(dweller) {
+    return this.urgency(dweller) * settings.tendWeight;
+  }
+
+  behaviour(dweller) {
+    if (this.urgency(dweller) < settings.behaviourThreshold) return null;
+    if (!dweller.place) return null;
+    const local = dweller.place.resources.filter((r) => dweller.knows(r.name));
+    if (local.length === 0) return null;
+    const target = [...local].sort(
+      (a, b) => a.amount - b.amount || dweller.tasteRank(a.name) - dweller.tasteRank(b.name)
+    )[0];
+    return { behaviour: "tend", resource: target, amount: this.amount, need: this };
+  }
+}
+
+class OriginNeed extends PeriodicNeed {
+  constructor(frequency) {
+    super("homing", frequency);
+  }
+
+  weight(dweller) {
+    return this.urgency(dweller) * settings.homeWeight;
+  }
+
+  behaviour(dweller) {
+    if (!dweller.place || dweller.place === dweller.origin) return null;
+    if (this.urgency(dweller) < settings.homingThreshold) return null;
+    const origin = dweller.origin;
+    let bestRoute = null;
+    let bestDistance = Infinity;
+    for (const route of dweller.place.routes) {
+      const dist = Math.hypot(route.destination.x - origin.x, route.destination.y - origin.y);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestRoute = route;
+      }
+    }
+    if (!bestRoute) return null;
+    return { behaviour: "travel", route: bestRoute, reason: "heading home", need: this };
+  }
+}
+
 export class Dweller {
   constructor(name, origin, place, tick = 0) {
     this.name = name;
@@ -247,6 +299,7 @@ export class Dweller {
     this.visitedPlaceNames = new Set();
     this.tastes = this.buildTastes(place);
     this.isCurious = chance(settings.explorationProb);
+    this.homebody = Math.random();
 
     if (place) this.learnPlace(place);
     this.generateNeeds();
@@ -283,23 +336,46 @@ export class Dweller {
     return this.knowledge.has(name);
   }
 
-  shareKnowledgeWith(other) {
-    for (const name of this.knowledge) other.knowledge.add(name);
-    for (const [name, places] of this.suppliers) {
+  shareKnowledgeWith(other, count) {
+    const names =
+      count != null
+        ? randomSample([...this.knowledge], count)
+        : [...this.knowledge];
+    const shared = [];
+    for (const name of names) {
+      other.knowledge.add(name);
       let target = other.suppliers.get(name);
       if (!target) {
         target = new Set();
         other.suppliers.set(name, target);
       }
-      for (const place of places) target.add(place);
+      const places = this.suppliers.get(name);
+      if (places) {
+        for (const place of places) target.add(place);
+      }
+      shared.push(name);
     }
+    return shared;
   }
 
-  chat() {
+  chat(t) {
     if (this.place.population.length <= 1) return;
     if (!chance(settings.gossipProb)) return;
     const peers = this.place.population.filter((h) => h !== this);
-    this.shareKnowledgeWith(randomElement(peers));
+    const peer = randomElement(peers);
+    const shared = this.shareKnowledgeWith(
+      peer,
+      randomIntBetween(settings.gossipShareMin, settings.gossipShareMax)
+    );
+    if (shared.length > 0) {
+      events.emit("gossip", {
+        t,
+        dweller: this.name,
+        peer: peer.name,
+        place: this.place.name,
+        names: shared,
+      });
+    }
   }
 
   generateNeeds() {
@@ -329,6 +405,24 @@ export class Dweller {
         )
       )
     );
+
+    this.needs.push(
+      new TendNeed(
+        randomIntBetween(
+          settings.tendFrequencyMin,
+          settings.tendFrequencyMax
+        )
+      )
+    );
+
+    this.needs.push(
+      new OriginNeed(
+        randomIntBetween(
+          settings.homingFrequencyMin,
+          settings.homingFrequencyMax
+        )
+      )
+    );
   }
 
   ageOneYear(t) {
@@ -338,11 +432,17 @@ export class Dweller {
     }
   }
 
-  die(cause) {
+  die(cause, t) {
     if (!this.alive) return;
     this.alive = false;
     const location = this.place ? this.place.name : "traveling";
-    log(`☠ ${this.name} (${this.age} years, ${location}) died of ${cause}`);
+    events.emit("death", {
+      t,
+      dweller: this.name,
+      age: this.age,
+      cause: cause,
+      place: location,
+    });
 
     if (this.place) {
       this.place.population = this.place.population.filter((h) => h !== this);
@@ -353,8 +453,13 @@ export class Dweller {
     }
   }
 
-  onArrival(destination) {
+  onArrival(destination, t) {
     this.learnPlace(destination);
+    const home = this.needs.find((n) => n.type === "homing");
+    if (destination === this.origin && home) {
+      home.reset();
+    }
+    events.emit("arrive", { t, dweller: this.name, at: destination.name });
   }
 
   update(t) {
@@ -363,7 +468,7 @@ export class Dweller {
     this.ageOneYear(t);
 
     if (this.age >= this.maxAge) {
-      this.die("old age");
+      this.die("old age", t);
       return;
     }
 
@@ -372,19 +477,19 @@ export class Dweller {
     if (this.settleTicksRemaining > 0) this.settleTicksRemaining--;
 
     if (this.health <= 0) {
-      this.die("malnutrition");
+      this.die("malnutrition", t);
       return;
     }
 
     if (this.route) {
-      travelBehaviour.step(this);
+      travelBehaviour.step(this, t);
     } else if (this.place) {
-      this.chat();
-      this.decideBehaviour();
+      this.chat(t);
+      this.decideBehaviour(t);
     }
   }
 
-  decideBehaviour() {
+  decideBehaviour(t) {
     const settling = this.settleTicksRemaining > 0;
     const candidates = [];
     for (const need of this.needs) {
@@ -400,6 +505,6 @@ export class Dweller {
 
     const chosen = weightedPick(candidates);
     chosen.need.reset();
-    behaviours[chosen.behaviour]?.perform(this, chosen);
+    behaviours[chosen.behaviour]?.perform(this, chosen, t);
   }
 }

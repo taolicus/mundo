@@ -3,10 +3,10 @@ import {
   randomIntBetween,
   chance,
   calculateDistance,
-  log,
 } from "../core/utils.js";
 import { drawCatalogSubset } from "../core/resources.js";
 import { Climate } from "../core/environment.js";
+import { events } from "../core/events.js";
 import { newDweller } from "./population.js";
 
 class Resource {
@@ -101,7 +101,7 @@ export class Region {
 
     const baby = newDweller(this, t);
     this.population.push(baby);
-    log(`👶 ${baby.name} was born in ${this.name}`);
+    events.emit("birth", { t, place: this.name, dweller: baby.name });
   }
 
   update(t) {
@@ -111,7 +111,6 @@ export class Region {
       resource.nextProductionTick = t + resource.productionInterval;
       if (resource.genRate <= 0) return;
       this.produceResource(resource, resource.genRate);
-      log(`${this.name} produced ${resource.genRate} new units of ${resource.name}`);
     });
     this.attemptBirth(t);
   }
