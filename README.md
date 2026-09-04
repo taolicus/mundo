@@ -52,8 +52,8 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 
 - A **World** is a set of **Regions** connected by **Routes**.
 - Each **Region** has **Resources** that regenerate naturally over time by `genRate` (temperature does not currently affect production).
-- Each **Dweller** has **Needs**, generated from resources it *knows* and that exist locally (only `organic` type is consumed). Unmet needs drain health; zero health dies of malnutrition. Dwellers also age and die.
-- Dwellers **travel** along routes for two reasons: a known need with no local supply has a known supplier elsewhere, or random exploration (`exploreProb`).
+- Each **Dweller** has typed **Needs** (behavioral drivers). **survival** needs target resources it *knows* and that exist locally (only `organic` type is consumed); unmet survival needs drain health, and zero health dies of malnutrition. Each dweller also has an **exploration** need that drives periodic travel to unvisited places. Dwellers age and die.
+- Dwellers **travel** along routes when a known survival need has no local supply but a known supplier elsewhere, or when the **exploration** need fires (preferring unvisited destinations).
 - **Births** use a flat rate (`settings.birthRate` chance per region per tick), capped per region by `settings.maxDwellersPerPlace`.
 
 ## Work checklist
@@ -64,9 +64,9 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - Currently no behavior module exists; travel/work logic is inline in `Dweller`.
 
 ### Module: Needs (generalize)
-- Generalize `Need` from "a resource-consumption timer" into a general **behavioral driver**.
-- Need types: **survival** (consume known local resource), **exploration** (see new places), **collection** (acquire things not held), **social** (meet people).
-- Build the shared structure now; implement **survival + exploration**; leave collection/social as future types.
+- ✅ **Partially done.** `Need` is now a typed **behavioral driver** (`need.type`): **survival** (consume known local resource) and **exploration** (periodic drive to visit unvisited places) are implemented. `collection`/`social` are reserved type strings, not yet built.
+- Exploration now dispatches through the need system (replaced the passive `exploreProb` dice roll); dwellers track `visitedPlaceNames` and prefer unvisited route destinations.
+- The shared `type`-dispatch structure in `Dweller.update` is the seam future need types plug into.
 
 ### Module: Environment (extract + simplify)
 - Create a separate **environment module** owning climate (temperature) per region, extendable to weather/seasons later.
