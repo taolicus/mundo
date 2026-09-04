@@ -61,35 +61,42 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ### Module: Behavior (core rework)
 - ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` picks survival-first and dispatches to the behaviour registry.
 - **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
-- **Next:** weighted urgency competition among needs (survival heavily weighted but competitive); move more traversal mechanics out of `Dweller`; add production/gathering as behaviours later. Traversal mechanics (startTravel/travel/travelProgress) still live on `Dweller` for now.
+- **Next (planned):**
+  - **Weighted urgency competition** — needs accumulate intensity; dweller picks the most pressing behaviour (survival heavily weighted but *competitive*, not absolute). *Decided, deferred.*
+  - **Traversal mechanics refactor** — move `startTravel`/`travel`/`travelProgress`/route traversal out of `Dweller` into the travel behaviour (currently still on `Dweller`).
+  - **More behaviours** — add production/gathering later, plugging into the same interface.
 
 ### Module: Needs (generalize)
-- ✅ **Partially done.** `Need` is now a typed **behavioral driver** (`need.type`): **survival** (consume known local resource) and **exploration** (periodic drive to visit unvisited places) are implemented. `collection`/`social` are reserved type strings, not yet built.
-- Exploration now dispatches through the need system (replaced the passive `exploreProb` dice roll); dwellers track `visitedPlaceNames` and prefer unvisited route destinations.
-- The shared `type`-dispatch structure in `Dweller.update` is the seam future need types plug into.
+- ✅ **Partially done.** `Need` is now a typed **behavioral driver** hierarchy: `SurvivalNeed` (consume known local resource on a shortage timer) and `ExplorationNeed` (periodic drive to visit unvisited places) are implemented and each owns its `tick` + `behaviour(intent)` logic. `collection`/`social` reserved (not built).
+- Exploration replaced the passive `exploreProb` dice roll; dwellers track `visitedPlaceNames` and prefer unvisited route destinations.
+- `Dweller.decideBehaviour` gathers each need's intent and dispatches by behaviour id — the seam future need/behaviour types plug into.
 
-### Module: Environment (extract + simplify)
+### Module: Environment (extract + simplify) — **not started**
 - Create a separate **environment module** owning climate (temperature) per region, extendable to weather/seasons later.
 - **Region delegates** temperature to it.
 - **Remove the temperature-sensitive resource multiplier** — regions produce resources purely by `genRate`.
-- Currently temperature lives inline in `Region` and still multiplies production.
+- Currently temperature lives inline in `Region` and still multiplies production (`region.js:calcTemperature`/`temperatureFactor`/`update`).
 
 ### Births: simple rate on Population
-- ✅ **Done.** Births now come from a flat attribute (`settings.birthRate`, chance per region per tick), capped by `settings.maxDwellersPerPlace`. No gender/demographics; the old surplus + adult-age-gated mechanic was removed.
-- Model population dynamics properly later.
+- ✅ **Done.** Births come from a flat attribute (`settings.birthRate`, chance per region per tick), capped by `settings.maxDwellersPerPlace`. No gender/demographics; the old surplus + adult-age-gated mechanic was removed. Model population dynamics properly later.
 
 ### Remove Relations
-- ✅ **Done.** The unused `Relation` machinery was removed (class, `addRelation`, `generateRelations`, settings, and panel display).
-- Rebuild inside the behavior module only when social behavior actually needs it.
+- ✅ **Done.** The unused `Relation` machinery was removed (class, `addRelation`, `generateRelations`, settings, and panel display). Rebuild inside the behavior module only when social behavior actually needs it.
+
+### Naming: `habitants` → `population` — **pending**
+- Locked-in decision: rename the `habitants` array property to `population` (terminology transition). Referenced in `core/utils.js`, `entities/world.js`, `entities/region.js`, `entities/dweller.js`, `entities/population.js`, `ui/app.js`, `ui/panel.js`. Mechanical, low-risk.
+- (Note: there is also a future *Population module* — an aggregate/statistics owner — separate from this rename.)
 
 ### Knowledge / indirect discovery (open thread)
 - Knowledge system stays as-is for now but needs more work.
 - Open problem: knowledge currently *inhibits* travel (you only need what you already have locally). Indirect knowledge — learning of resources/places from other traveled dwellers — is what should genuinely *drive* travel and discovery.
 - Design a natural channel for knowledge to spread between dwellers.
 
-### UI (lower priority)
-- A **UI module** would separate rendering of controls/stats/panel from game logic. Not urgent.
-- ✅ **Done.** Play/pause is now a **single toggle button** (`#toggle`).
+### UI
+- ✅ **Layer separation done.** `ui/` is the browser adapter (canvas/DOM/controls/panel); `core/` has no DOM. Rendering is `render.js`; controls/stats/panel in `ui/`.
+- ✅ **Done:** single toggle Play/Pause (`#toggle`).
+- ✅ **Done:** menu button (☰) with **Regions** list and **Dwellers** list (incl. travellers); clicking an item opens the same info as the corresponding canvas click; dweller details show current action/reason; place field shows `origin → destination` while travelling.
+- ✅ **Reverted:** per-traveler canvas action labels (too cluttered) — reasons shown on the dweller panel instead.
 
 ## Repository / sharing notes
 
