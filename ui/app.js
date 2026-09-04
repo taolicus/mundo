@@ -3,6 +3,7 @@ import { settings } from "../core/settings.js";
 import { events } from "../core/events.js";
 import { World } from "../entities/world.js";
 import { drawWorld, buildRoutesPath } from "./render.js";
+import { seasonAt } from "../core/environment.js";
 import { showPlace, showDweller, updatePanel, hidePanel, setWorld } from "./panel.js";
 
 events.debug = Boolean(window.__DEBUG__) || location.search.includes("debug");
@@ -92,15 +93,32 @@ canvas.addEventListener("click", (event) => {
 const tickBtn = document.getElementById("tick");
 const toggleBtn = document.getElementById("toggle");
 
-const statTick = document.getElementById("statTick");
+const statYear = document.getElementById("statYear");
+const statDay = document.getElementById("statDay");
 const statPopulation = document.getElementById("statPopulation");
+const statSeason = document.getElementById("statSeason");
+
+const seasonColor = {
+  spring: "#8fbf6f",
+  summer: "#e0b860",
+  autumn: "#d09058",
+  winter: "#7fb8e8",
+};
 
 function updateStats() {
   const population =
     world.places.reduce((sum, p) => sum + p.population.length, 0) +
     world.getTravelersInTransit().length;
-  statTick.textContent = world.tick;
+  const hours = world.tick;
+  const dayOfYear =
+    (Math.floor(hours / settings.hoursPerDay) % settings.daysPerYear) + 1;
+  const year = Math.floor(hours / settings.ticksPerYear) + 1;
+  statYear.textContent = year;
+  statDay.textContent = dayOfYear;
   statPopulation.textContent = population;
+  const season = seasonAt(hours);
+  statSeason.textContent = season;
+  statSeason.style.color = seasonColor[season];
 }
 
 updateStats();

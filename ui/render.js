@@ -1,4 +1,12 @@
 import { settings } from "../core/settings.js";
+import { seasonAt } from "../core/environment.js";
+
+const seasonTint = {
+  spring: "rgba(28, 52, 30, 0.85)",
+  summer: "rgba(58, 46, 20, 0.85)",
+  autumn: "rgba(52, 40, 20, 0.85)",
+  winter: "rgba(24, 42, 58, 0.85)",
+};
 
 export function buildRoutesPath(world) {
   const path = new Path2D();
@@ -54,6 +62,8 @@ function tempColor(temp) {
 
 export function drawWorld(ctx, world, alpha, routesDrawing, focus) {
   ctx.clearRect(0, 0, world.width, world.height);
+  ctx.fillStyle = seasonTint[seasonAt(world.tick)];
+  ctx.fillRect(0, 0, world.width, world.height);
 
   ctx.strokeStyle = "#666";
   ctx.lineWidth = 1;
