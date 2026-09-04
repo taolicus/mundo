@@ -49,7 +49,11 @@ document.addEventListener("click", (e) => {
 });
 
 export function showRegionList() {
-  currentSelection = { type: "list", label: "Regions" };
+  currentSelection = { type: "list", render: renderRegionList };
+  renderRegionList();
+}
+
+function renderRegionList() {
   const items = selectedWorld.places
     .map(
       (p, i) =>
@@ -66,7 +70,11 @@ export function showRegionList() {
 }
 
 export function showDwellerList() {
-  currentSelection = { type: "list", label: "Dwellers" };
+  currentSelection = { type: "list", render: renderDwellerList };
+  renderDwellerList();
+}
+
+function renderDwellerList() {
   const dwellers = getAllDwellers();
   const items = dwellers
     .map(
@@ -74,7 +82,7 @@ export function showDwellerList() {
         `<div class="list-item" data-hab="${i}"><span>${d.name}</span><b>${d.place ? d.place.name : "traveling"}</b></div>`
     )
     .join("");
-  showPanel("DWELLERS", items);
+  showPanel(`DWELLERS · ${dwellers.length}`, items || "<span style='color:#888'>no dwellers</span>");
   panelBody.querySelectorAll(".list-item").forEach((el) => {
     el.addEventListener("click", () => {
       const d = dwellers[Number(el.dataset.hab)];
@@ -91,9 +99,13 @@ function getAllDwellers() {
 }
 
 function updatePanel() {
-  if (currentSelection) {
-    if (currentSelection.type === "place") renderPlace(currentSelection.place);
-    else if (currentSelection.type === "dweller") renderDweller(currentSelection.dweller);
+  if (!currentSelection) return;
+  if (currentSelection.type === "place") renderPlace(currentSelection.place);
+  else if (currentSelection.type === "dweller") renderDweller(currentSelection.dweller);
+  else if (currentSelection.type === "list" && currentSelection.render) {
+    const scroll = panel.scrollTop;
+    currentSelection.render();
+    panel.scrollTop = scroll;
   }
 }
 
@@ -218,11 +230,13 @@ function renderDweller(dweller) {
     0
   );
 
-  const progress = dweller.route
-    ? `${Math.round(dweller.travelProgress * 100)}% of ${dweller.totalTravelTime}t`
-    : dweller.settleTicksRemaining > 0
-      ? `resting ${dweller.settleTicksRemaining}t`
-      : "idle";
+  const progress = !dweller.alive
+    ? "deceased"
+    : dweller.route
+      ? `${Math.round(dweller.travelProgress * 100)}% of ${dweller.totalTravelTime}t`
+      : dweller.settleTicksRemaining > 0
+        ? `resting ${dweller.settleTicksRemaining}t`
+        : "idle";
 
   const back = backPlace
     ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${backPlace.name}</a><br>`
@@ -257,7 +271,11 @@ function renderDweller(dweller) {
 }
 
 export function showTransitList() {
-  currentSelection = { type: "list", label: "In transit" };
+  currentSelection = { type: "list", render: renderTransitList };
+  renderTransitList();
+}
+
+function renderTransitList() {
   const travelers = selectedWorld.getTravelersInTransit();
   const items = travelers
     .map(
