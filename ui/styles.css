@@ -92,3 +92,52 @@ canvas {
   font-family: 'IBM Plex Mono', monospace;
 }
 #panel .close:hover { color: #fff; }
+
+#menuBtnWrap {
+  position: fixed;
+  top: 40px;
+  left: 16px;
+  z-index: 4;
+}
+#menuBtn {
+  background: #222;
+  color: #fff;
+  border: 1px solid #555;
+  width: 36px;
+  height: 36px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  cursor: pointer;
+}
+#menu {
+  display: none;
+  margin-top: 4px;
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid #444;
+}
+#menu.open { display: block; }
+#menu button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  text-align: left;
+  padding: 8px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+}
+#menu button:hover { background: #222; }
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #222;
+  cursor: pointer;
+  color: #4a4;
+}
+.list-item:hover { background: #111; }
+

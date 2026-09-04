@@ -7,6 +7,11 @@ panelClose.addEventListener("click", hidePanel);
 
 let backPlace = null;
 let currentSelection = null;
+let selectedWorld = null;
+
+export function setWorld(world) {
+  selectedWorld = world;
+}
 
 function showPanel(title, content) {
   panelTitle.textContent = title;
@@ -20,6 +25,70 @@ function hidePanel() {
 }
 
 export { hidePanel };
+
+const menuBtn = document.getElementById("menuBtn");
+const menu = document.getElementById("menu");
+
+menuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  menu.classList.toggle("open");
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#menuBtnWrap")) {
+    menu.classList.remove("open");
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#menu button[data-action]");
+  if (!b) return;
+  menu.classList.remove("open");
+  if (b.dataset.action === "regions") showRegionList();
+  else if (b.dataset.action === "dwellers") showDwellerList();
+});
+
+export function showRegionList() {
+  currentSelection = { type: "list", label: "Regions" };
+  const items = selectedWorld.places
+    .map(
+      (p, i) =>
+        `<div class="list-item" data-region="${i}"><span>${p.name}</span><b>${p.habitants.length}</b></div>`
+    )
+    .join("");
+  showPanel("REGIONS", items);
+  panelBody.querySelectorAll(".list-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const place = selectedWorld.places[Number(el.dataset.region)];
+      if (place) showPlace(place);
+    });
+  });
+}
+
+export function showDwellerList() {
+  currentSelection = { type: "list", label: "Dwellers" };
+  const dwellers = getAllDwellers();
+  const items = dwellers
+    .map(
+      (d, i) =>
+        `<div class="list-item" data-hab="${i}"><span>${d.name}</span><b>${d.place ? d.place.name : "traveling"}</b></div>`
+    )
+    .join("");
+  showPanel("DWELLERS", items);
+  panelBody.querySelectorAll(".list-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const d = dwellers[Number(el.dataset.hab)];
+      if (d) showDweller(d);
+    });
+  });
+}
+
+function getAllDwellers() {
+  const dwellers = [];
+  selectedWorld.places.forEach((p) => dwellers.push(...p.habitants));
+  selectedWorld.getTravelersInTransit().forEach((t) => dwellers.push(t));
+  return dwellers;
+}
 
 function updatePanel() {
   if (currentSelection) {
@@ -37,10 +106,6 @@ function row(label, value) {
 function bar(ratio) {
   const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
   return `<div class="bar"><div class="fill" style="width:${pct}%"></div></div>`;
-}
-
-function dwellerLink(dweller) {
-  return `<a href="#" data-hab="${dweller.name}" class="hab-link" style="color:#4a4;text-decoration:none">${dweller.name}</a>`;
 }
 
 export function showPlace(place) {
@@ -64,7 +129,10 @@ function renderPlace(place) {
     .join("");
 
   const dwellerList = place.habitants
-    .map((h) => row(dwellerLink(h)))
+    .map(
+      (h, i) =>
+        `<div class="row"><a href="#" data-hab="${i}" class="hab-link" style="color:#4a4;text-decoration:none">${h.name}</a></div>`
+    )
     .join("");
 
   showPanel(
@@ -83,7 +151,7 @@ function renderPlace(place) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const h = place.habitants.find((d) => d.name === a.dataset.hab);
+      const h = place.habitants[Number(a.dataset.hab)];
       if (h) showDweller(h);
     });
   });

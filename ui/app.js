@@ -2,7 +2,7 @@ import { getRegion } from "../core/utils.js";
 import { settings } from "../core/settings.js";
 import { World } from "../entities/world.js";
 import { drawWorld, buildRoutesPath } from "./render.js";
-import { showPlace, updatePanel, hidePanel } from "./panel.js";
+import { showPlace, updatePanel, hidePanel, setWorld } from "./panel.js";
 
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");
@@ -28,6 +28,7 @@ function resize() {
 resize();
 
 world = new World(canvas.width, canvas.height);
+setWorld(world);
 routesDrawing = buildRoutesPath(world);
 drawWorld(ctx, world, 0, routesDrawing);
 
