@@ -38,6 +38,8 @@ export class Habitante {
     this.progresoViaje = 0;
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
+    this.trabajo = null;
+    this.habilidad = numberoAleatorioEntre(5, 20) / 10;
     this.generarNecesidadesBasicas();
   }
 
@@ -104,8 +106,18 @@ export class Habitante {
     }
   }
 
+  asignarTrabajo() {
+    if (!this.lugar || this.lugar.recursos.length === 0) return;
+    if (this.trabajo && umbral(0.9)) return;
+
+    const recurso = elementoAleatorio(this.lugar.recursos);
+    this.trabajo = recurso;
+    log(`${this.nombre} ha sido asignado a trabajar en ${recurso.nombre}`);
+  }
+
   iniciarViaje(ruta) {
     this.ruta = ruta;
+    this.trabajo = null;
     this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
     this.ruta.agregarViajante(this);
     this.lugar = null;
@@ -124,6 +136,7 @@ export class Habitante {
       this.ruta.removerViajante(this);
       this.lugar = this.ruta.destino;
       this.lugar.habitantes.push(this);
+      this.asignarTrabajo();
       log(
         `${this.nombre} ha llegado a ${this.ruta.destino.nombre} desde ${this.ruta.origen.nombre}`
       );

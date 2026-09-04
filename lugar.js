@@ -1,6 +1,7 @@
 import { ajustes } from "./ajustes.js";
 import {
   numberoAleatorioEntre,
+  elementoAleatorio,
   generarNombre,
   umbral,
   log,
@@ -13,6 +14,10 @@ class Recurso {
     this.peso = numberoAleatorioEntre(1, 99);
     this.cantidad = numberoAleatorioEntre(1, 99);
     this.origen = origen;
+    this.generacionRate = numberoAleatorioEntre(ajustes.TASA_BASE_MIN, ajustes.TASA_BASE_MAX);
+    this.capacidad = numberoAleatorioEntre(ajustes.CAPACIDAD_BASE_MIN, ajustes.CAPACIDAD_BASE_MAX);
+    this.tipo = elementoAleatorio(["organico", "mineral"]);
+    this.sensibleTemperatura = umbral(0.3);
   }
 }
 
@@ -62,6 +67,7 @@ export class Lugar {
     this.recursos = [];
     this.habitantes = [];
     this.rutas = [];
+    this.descubrimientos = [];
     this.generarRecursos();
     this.generarHabitantes();
     this.habitantes.forEach((habitante) => {
@@ -114,22 +120,64 @@ export class Lugar {
 
   producirRecurso(recurso, cantidad) {
     if (!this.recursos.includes(recurso)) return false;
-    recurso.cantidad += cantidad;
+    recurso.cantidad = Math.min(recurso.cantidad + cantidad, recurso.capacidad);
     return true;
+  }
+
+  calcularFactorTemperatura(recurso) {
+    if (!recurso.sensibleTemperatura) return 1;
+    return 1 + (this.temperatura - ajustes.TEMP_OPTIMA) * ajustes.SENSIBILIDAD_TEMPERATURA;
+  }
+
+  intentarDescubrimiento() {
+    if (this.recursos.length < 2 || !umbral(0.005)) return;
+
+    const recursoA = elementoAleatorio(this.recursos);
+    const recursoB = elementoAleatorio(this.recursos.filter((r) => r !== recursoA));
+
+    if (!recursoA || !recursoB) return;
+
+    const par = [recursoA.nombre, recursoB.nombre].sort().join("+");
+    if (this.descubrimientos.includes(par)) return;
+
+    if (recursoA.cantidad > recursoA.capacidad * 0.5 &&
+        recursoB.cantidad > recursoB.capacidad * 0.5) {
+      this.descubrimientos.push(par);
+
+      const nombre = generarNombre();
+      const nuevoRecurso = new Recurso(nombre, this);
+      nuevoRecurso.peso = Math.floor((recursoA.peso + recursoB.peso) / 2);
+      nuevoRecurso.tipo = recursoA.tipo === recursoB.tipo ? recursoA.tipo : "hibrido";
+      nuevoRecurso.generacionRate = Math.max(1, Math.floor((recursoA.generacionRate + recursoB.generacionRate) / 2));
+      nuevoRecurso.capacidad = Math.floor((recursoA.capacidad + recursoB.capacidad) / 2);
+      nuevoRecurso.cantidad = Math.floor((recursoA.cantidad + recursoB.cantidad) / 4);
+
+      recursoA.cantidad = Math.floor(recursoA.cantidad * 0.75);
+      recursoB.cantidad = Math.floor(recursoB.cantidad * 0.75);
+
+      this.recursos.push(nuevoRecurso);
+      log(
+        `${this.nombre} ha descubierto ${nombre} usando ${recursoA.nombre} y ${recursoB.nombre}`
+      );
+    }
   }
 
   actualizar(t) {
     this.calcularTemperatura(t);
     this.habitantes.forEach((habitante) => habitante.actualizar());
-    // producir recursos nuevos
+    // producir recursos según tasa base + contribución de trabajadores
     this.recursos.forEach((recurso) => {
-      if (umbral(0.1)) {
-        const cantidad = numberoAleatorioEntre(1, 10);
+      const factor = this.calcularFactorTemperatura(recurso);
+      const trabajadores = this.habitantes.filter((h) => h.trabajo === recurso);
+      const sumaHabilidades = trabajadores.reduce((sum, h) => sum + h.habilidad, 0);
+      const cantidad = Math.max(0, Math.floor(recurso.generacionRate * factor * (1 + sumaHabilidades)));
+      if (cantidad > 0) {
         this.producirRecurso(recurso, cantidad);
         log(
           `${this.nombre} ha producido ${cantidad} nuevas unidades de ${recurso.nombre}`
         );
       }
     });
+    this.intentarDescubrimiento();
   }
 }

@@ -1,6 +1,7 @@
-import { log, obtenerLugar } from "./funciones.js";
+import { obtenerLugar } from "./funciones.js";
 import { ajustes } from "./ajustes.js";
 import { Mundo } from "./mundo.js";
+import { mostrarLugar, actualizarPanel } from "./panel.js";
 
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");
@@ -39,12 +40,40 @@ canvas.addEventListener("click", (event) => {
 
   const lugar = obtenerLugar(x, y, mundo.lugares);
 
-  if (lugar) log(lugar);
+  if (lugar) {
+    mostrarLugar(lugar);
+  }
 });
 
 const tickBtn = document.getElementById("tick");
 const pauseBtn = document.getElementById("pause");
 const playBtn = document.getElementById("play");
+
+const statTick = document.getElementById("statTick");
+const statPoblacion = document.getElementById("statPoblacion");
+const statRecursos = document.getElementById("statRecursos");
+const statDescubrimientos = document.getElementById("statDescubrimientos");
+
+function actualizarStats() {
+  const poblacion = mundo.lugares.reduce(
+    (sum, l) => sum + l.habitantes.length,
+    0
+  );
+  const recursos = mundo.lugares.reduce(
+    (sum, l) => sum + l.recursos.length,
+    0
+  );
+  const descubrimientos = mundo.lugares.reduce(
+    (sum, l) => sum + l.descubrimientos.length,
+    0
+  );
+  statTick.textContent = mundo.tick;
+  statPoblacion.textContent = poblacion;
+  statRecursos.textContent = recursos;
+  statDescubrimientos.textContent = descubrimientos;
+}
+
+actualizarStats();
 
 const fps = 30;
 const frameDuration = 1000 / fps;
@@ -75,6 +104,8 @@ function tick() {
   if (isPaused) {
     mundo.actualizar();
     mundo.dibujar(ctx, 0);
+    actualizarStats();
+    actualizarPanel();
   }
 }
 
@@ -98,6 +129,8 @@ function loop(currentTime) {
   // Calculate interpolation factor for smooth rendering
   const alpha = accumulator / frameDuration;
   mundo.dibujar(ctx, alpha);
+  actualizarStats();
+  actualizarPanel();
 
   animationId = requestAnimationFrame(loop);
 }

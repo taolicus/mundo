@@ -36,6 +36,20 @@ export function obtenerLugar(x, y, lugares) {
   return null;
 }
 
+export function obtenerHabitante(x, y, lugares) {
+  for (const lugar of lugares) {
+    for (const habitante of lugar.habitantes) {
+      const distancia = Math.sqrt(
+        Math.pow(x - lugar.x, 2) + Math.pow(y - lugar.y, 2)
+      );
+      if (distancia <= ajustes.tamanoDibujo / 2) {
+        return habitante;
+      }
+    }
+  }
+  return null;
+}
+
 export function indiceAleatorio(coleccion) {
   return Math.floor(Math.random() * coleccion.length);
 }

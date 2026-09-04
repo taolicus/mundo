@@ -94,6 +94,24 @@ export class Mundo {
     this.viajantes.forEach((viajante) => viajante.actualizar());
   }
 
+  colorTemperatura(temp) {
+    let r, g, b;
+    if (temp <= 5) {
+      r = 68; g = 136; b = 255;
+    } else if (temp <= 25) {
+      const t = (temp - 5) / 20;
+      r = Math.round(68 + (255 - 68) * t);
+      g = Math.round(136 + (255 - 136) * t);
+      b = Math.round(255 + (255 - 255) * t);
+    } else {
+      const t = Math.min(1, (temp - 25) / 15);
+      r = Math.round(255 + (255 - 255) * t);
+      g = Math.round(255 + (68 - 255) * t);
+      b = Math.round(255 + (68 - 255) * t);
+    }
+    return `rgb(${r},${g},${b})`;
+  }
+
   dibujar(ctx, alpha) {
     ctx.clearRect(0, 0, this.width, this.height);
 
@@ -127,11 +145,12 @@ export class Mundo {
     });
 
     // Lugares
-    ctx.fillStyle = "#fff";
     for (const lugar of this.lugares) {
+      ctx.fillStyle = this.colorTemperatura(lugar.temperatura);
       ctx.beginPath();
       ctx.arc(lugar.x, lugar.y, ajustes.tamanoDibujo, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = "#fff";
       ctx.fillText(lugar.nombre, lugar.x, lugar.y + ajustes.tamanoDibujo * 2);
     }
   }

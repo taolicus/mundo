@@ -12,4 +12,10 @@ export const ajustes = {
   ENFRIAMIENTO_Y: 0.05,
   horasDia: 24,
   diasEnAnio: 360,
+  CAPACIDAD_BASE_MIN: 50,
+  CAPACIDAD_BASE_MAX: 200,
+  TASA_BASE_MIN: 1,
+  TASA_BASE_MAX: 5,
+  SENSIBILIDAD_TEMPERATURA: 0.01,
+  TEMP_OPTIMA: 15,
 };
