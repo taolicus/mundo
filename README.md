@@ -46,7 +46,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - **Import graph is one-way:** `ui → core → entities`, never the reverse.
 - **`habitants` array property** will be renamed to `population` as part of the terminology transition.
 
-> Note: as of this writing the flat files have not yet been moved into these dirs; this section is the target the cleanup step works toward.
+> The files have been moved into these directories; the target architecture above is now the live layout. `ui/index.html` was moved to the repo root as `index.html` (referencing `./ui/app.js` + `./ui/styles.css`) because Acode's server does not serve files outside the opened directory.
 
 ## Current behavior
 
@@ -54,7 +54,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - Each **Region** has **Resources** that regenerate naturally over time by `genRate` (temperature does not currently affect production).
 - Each **Dweller** has **Needs**, generated from resources it *knows* and that exist locally (only `organic` type is consumed). Unmet needs drain health; zero health dies of malnutrition. Dwellers also age and die.
 - Dwellers **travel** along routes for two reasons: a known need with no local supply has a known supplier elsewhere, or random exploration (`exploreProb`).
-- **Births** exist but currently use a surplus/age-gated mechanic that is slated to be replaced.
+- **Births** use a flat rate (`settings.birthRate` chance per region per tick), capped per region by `settings.maxDwellersPerPlace`.
 
 ## Work checklist
 
@@ -75,13 +75,12 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - Currently temperature lives inline in `Region` and still multiplies production.
 
 ### Births: simple rate on Population
-- Birth rate becomes a **flat attribute of the Population module** (not of Dwellers). No gender/demographics yet.
-- Replace the current surplus + adult-age-gated birth mechanic with births generated from that simple rate.
+- ✅ **Done.** Births now come from a flat attribute (`settings.birthRate`, chance per region per tick), capped by `settings.maxDwellersPerPlace`. No gender/demographics; the old surplus + adult-age-gated mechanic was removed.
 - Model population dynamics properly later.
 
 ### Remove Relations
-- `Relation` is currently unused and not well scoped.
-- Remove it. Rebuild inside the behavior module only when social behavior actually needs it.
+- ✅ **Done.** The unused `Relation` machinery was removed (class, `addRelation`, `generateRelations`, settings, and panel display).
+- Rebuild inside the behavior module only when social behavior actually needs it.
 
 ### Knowledge / indirect discovery (open thread)
 - Knowledge system stays as-is for now but needs more work.
@@ -90,7 +89,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 
 ### UI (lower priority)
 - A **UI module** would separate rendering of controls/stats/panel from game logic. Not urgent.
-- Change **play/pause** from two buttons to a **single toggle button**.
+- ✅ **Done.** Play/pause is now a **single toggle button** (`#toggle`).
 
 ## Repository / sharing notes
 
