@@ -64,7 +64,12 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
 - ✅ **Traversal mechanics refactor done.** `start`/`step` (depart, advance progress, arrive) moved out of `Dweller` into `core/behaviours/travel.js`; `travel.perform` delegates to `start`. `Dweller` keeps only travel *state* (`route`/`travelProgress`/`elapsedTravelTime`/`totalTravelTime`) plus an `onArrival(destination)` lifecycle hook (learn place + regenerate needs).
 - **Next (planned):**
-  - **More behaviours** — add production/gathering later, plugging into the same interface.
+  - **More behaviours** — add production later, plugging into the same interface.
+
+### Gather behaviour — ✅ done
+- A `GatherNeed` (type `gather`) drives travel to a **known place** (visited) that carries a resource *name* absent from the current place; reason `to gather <name>`.
+- Distinct from exploration (curiosity, unvisited) and survival (consume-when-short). Urgency ramps like exploration; weight `gatherWeight:1.5` lands between idle curiosity (1.0) and severe survival (up to ~9) in the weighted competition.
+- Sampled ratio in an 8k-tick run: ~79 gather trips vs ~2733 curiosity (a deliberate, rarer pull).
 
 ### Module: Needs (generalize)
 - ✅ **Partially done.** `Need` is now a typed **behavioral driver** hierarchy: `SurvivalNeed` (consume known local resource on a shortage timer) and `ExplorationNeed` (periodic drive to visit unvisited places) are implemented and each owns its `tick` + `behaviour(intent)` logic. `collection`/`social` reserved (not built).

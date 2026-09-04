@@ -118,6 +118,49 @@ class ExplorationNeed extends Need {
   }
 }
 
+class GatherNeed extends Need {
+  constructor(frequency) {
+    super("gather");
+    this.frequency = frequency;
+    this.lastGather = 0;
+  }
+
+  tick(dweller, t) {
+    this.lastGather++;
+  }
+
+  urgency(dweller) {
+    return Math.min(1, this.lastGather / this.frequency);
+  }
+
+  weight(dweller) {
+    return this.urgency(dweller) * settings.gatherWeight;
+  }
+
+  behaviour(dweller) {
+    if (this.urgency(dweller) < settings.behaviourThreshold) return null;
+    if (!dweller.place || dweller.place.routes.length === 0) return null;
+    const localNames = new Set(dweller.place.resources.map((r) => r.name));
+    const candidates = [];
+    for (const route of dweller.place.routes) {
+      if (route.destination === dweller.place) continue;
+      if (!dweller.visitedPlaceNames.has(route.destination.name)) continue;
+      const missing = route.destination.resources.find(
+        (r) => !localNames.has(r.name) && dweller.knows(r.name)
+      );
+      if (missing) candidates.push({ route, resource: missing });
+    }
+    if (candidates.length === 0) return null;
+    const pick = randomElement(candidates);
+    return {
+      behaviour: "travel",
+      route: pick.route,
+      reason: `to gather ${pick.resource.name}`,
+      need: this,
+    };
+  }
+}
+
 export class Dweller {
   constructor(name, origin, place, tick = 0) {
     this.name = name;
@@ -195,6 +238,15 @@ export class Dweller {
         )
       )
     );
+
+    this.needs.push(
+      new GatherNeed(
+        randomIntBetween(
+          settings.gatherFrequencyMin,
+          settings.gatherFrequencyMax
+        )
+      )
+    );
   }
 
   ageOneYear(t) {
@@ -262,8 +314,9 @@ export class Dweller {
     if (candidates.length === 0) return;
 
     const chosen = weightedPick(candidates);
-    if (chosen.need && chosen.need.type === "exploration") {
-      chosen.need.lastExplored = 0;
+    if (chosen.need) {
+      if (chosen.need.type === "exploration") chosen.need.lastExplored = 0;
+      else if (chosen.need.type === "gather") chosen.need.lastGather = 0;
     }
     switch (chosen.behaviour) {
       case "travel":
