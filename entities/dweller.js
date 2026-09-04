@@ -216,9 +216,11 @@ export class Dweller {
     this.maxAge = randomIntBetween(settings.maxAgeMin, settings.maxAgeMax);
     this.nextYear = tick + this.nextBirthday();
     this.needs = [];
-    this.route = null;
+this.route = null;
     this.travelProgress = 0;
+    this.elapsedTravelTime = 0;
     this.totalTravelTime = 0;
+    this.settleTicksRemaining = 0;
     this.elapsedTravelTime = 0;
     this.knowledge = new Set();
     this.suppliers = new Map();
@@ -339,6 +341,8 @@ export class Dweller {
 
     this.needs.forEach((need) => need.tick(this, t));
 
+    if (this.settleTicksRemaining > 0) this.settleTicksRemaining--;
+
     if (this.health <= 0) {
       this.die("malnutrition");
       return;
@@ -359,8 +363,10 @@ export class Dweller {
   }
 
   decideBehaviour() {
+    const settling = this.settleTicksRemaining > 0;
     const candidates = [];
     for (const need of this.needs) {
+      if (settling && need.type !== "survival") continue;
       const intent = need.behaviour(this);
       if (!intent) continue;
       const weight = need.weight(this);

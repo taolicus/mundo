@@ -1,3 +1,6 @@
+import { randomIntBetween } from "../../core/utils.js";
+import { settings } from "../../core/settings.js";
+
 export const travel = {
   id: "travel",
 
@@ -26,6 +29,10 @@ export const travel = {
     destination.habitants.push(dweller);
     dweller.route = null;
     dweller.activity = "resting";
+    dweller.settleTicksRemaining = randomIntBetween(
+      settings.settlePeriodMin,
+      settings.settlePeriodMax
+    );
     dweller.onArrival(destination);
   },
 };
