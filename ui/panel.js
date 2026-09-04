@@ -166,13 +166,17 @@ function renderDweller(dweller) {
   const needs = dweller.needs.length
     ? dweller.needs
         .map((n) => {
-          if (n.type === "exploration") {
-            return row("explore", `every ${n.frequency}t`);
-          }
-          return row(n.resource.name, `${n.amount}u / every ${n.frequency}t`);
+          if (n.type === "survival") return row("hunger", `every ${n.frequency}t`);
+          if (n.type === "exploration") return row("explore", `every ${n.frequency}t`);
+          if (n.type === "gather") return row("gather", `every ${n.frequency}t`);
+          return "";
         })
         .join("")
     : "";
+
+  const likes = dweller.tastes && dweller.tastes.length
+    ? dweller.tastes[0]
+    : "—";
 
   const back = backPlace
     ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${backPlace.name}</a><br>`
@@ -182,6 +186,7 @@ function renderDweller(dweller) {
     `DWELLER · ${dweller.name}`,
     back +
       row("age", dweller.age) +
+      row("likes", likes) +
       row("activity", dweller.activity || "resting") +
       row("place", dweller.route
         ? `${dweller.route.origin.name} → ${dweller.route.destination.name}`

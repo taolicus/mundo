@@ -30,11 +30,10 @@ class Need {
 }
 
 class SurvivalNeed extends Need {
-  constructor(resource, amount, frequency) {
+  constructor(frequency) {
     super("survival");
-    this.resource = resource;
-    this.amount = amount;
     this.frequency = frequency;
+    this.amount = randomIntBetween(settings.needAmountMin, settings.needAmountMax);
     this.lastConsumption = randomIntBetween(0, frequency);
     this.shortageAnnounced = false;
     this.urgencyFrac = 0;
@@ -45,13 +44,14 @@ class SurvivalNeed extends Need {
     this.lastConsumption++;
     if (this.lastConsumption <= this.frequency) return;
 
-    const name = this.resource.name;
-    const available = dweller.place.resources.find(
-      (r) => r.name === name && r.amount > 0
+    const edible = dweller.place.resources.filter(
+      (r) => r.type === "organic" && r.amount > 0 && dweller.knows(r.name)
     );
-
-    if (available) {
-      dweller.place.consumeResource(available, this.amount);
+    if (edible.length > 0) {
+      const best = edible.sort(
+        (a, b) => dweller.tasteRank(a.name) - dweller.tasteRank(b.name)
+      )[0];
+      dweller.place.consumeResource(best, this.amount);
       this.lastConsumption = 0;
       this.activity = "eating";
       this.urgencyFrac = 0;
@@ -64,10 +64,7 @@ class SurvivalNeed extends Need {
         3,
         this.urgencyFrac + settings.survivalUrgencyRamp
       );
-      if (!this.shortageAnnounced) {
-        log(`${dweller.place.name} needs ${name} but there is not enough`);
-        this.shortageAnnounced = true;
-      }
+      this.shortageAnnounced = true;
     }
   }
 
@@ -79,25 +76,42 @@ class SurvivalNeed extends Need {
     return this.urgencyFrac * settings.survivalWeight;
   }
 
+  knowFoodPlaces(dweller) {
+    const foodPlaces = new Set();
+    for (const places of dweller.suppliers.values()) {
+      for (const place of places) {
+        if (place !== dweller.place) foodPlaces.add(place);
+      }
+    }
+    return foodPlaces;
+  }
+
+  seekReason(dweller) {
+    for (const name of dweller.tastes) {
+      if (dweller.suppliers.has(name)) return `seeking ${name}`;
+    }
+    return "seeking food";
+  }
+
   behaviour(dweller) {
     if (!dweller.place || !this.shortageAnnounced) return null;
-    const name = this.resource.name;
-    if (!dweller.suppliers.has(name)) return null;
-    const suppliers = dweller.suppliers.get(name);
+    const foodPlaces = this.knowFoodPlaces(dweller);
+    if (foodPlaces.size === 0) return null;
     for (const route of dweller.place.routes) {
-      if (suppliers.has(route.destination) && route.destination !== dweller.place) {
-        return { behaviour: "travel", route, reason: `seeking ${name}` };
+      if (foodPlaces.has(route.destination)) {
+        return {
+          behaviour: "travel",
+          route,
+          reason: this.seekReason(dweller),
+          need: this,
+        };
       }
     }
     let bestRoute = null;
     let bestDist = Infinity;
     for (const route of dweller.place.routes) {
-      for (const supplier of suppliers) {
-        if (supplier === dweller.place) continue;
-        const dist = Math.hypot(
-          route.destination.x - supplier.x,
-          route.destination.y - supplier.y
-        );
+      for (const fp of foodPlaces) {
+        const dist = Math.hypot(route.destination.x - fp.x, route.destination.y - fp.y);
         if (dist < bestDist) {
           bestDist = dist;
           bestRoute = route;
@@ -105,7 +119,12 @@ class SurvivalNeed extends Need {
       }
     }
     if (bestRoute) {
-      return { behaviour: "travel", route: bestRoute, reason: `seeking ${name}` };
+      return {
+        behaviour: "travel",
+        route: bestRoute,
+        reason: this.seekReason(dweller),
+        need: this,
+      };
     }
     return null;
   }
@@ -200,8 +219,21 @@ export class Dweller {
     this.knowledge = new Set();
     this.suppliers = new Map();
     this.visitedPlaceNames = new Set();
+    this.tastes = this.buildTastes(place);
     if (place) this.learnPlace(place);
     this.generateNeeds();
+  }
+
+  buildTastes(place) {
+    const foods = place && place.catalog ? [...place.catalog.foods] : [];
+    const ranked = foods.map((f) => ({ name: f.name, score: Math.random() }));
+    ranked.sort((a, b) => a.score - b.score);
+    return ranked.map((r) => r.name);
+  }
+
+  tasteRank(name) {
+    const idx = this.tastes.indexOf(name);
+    return idx === -1 ? this.tastes.length : idx;
   }
 
   nextBirthday() {
@@ -235,33 +267,13 @@ export class Dweller {
     }
   }
 
-  localEdibleResources() {
-    if (!this.place) return [];
-    return this.place.resources.filter((r) => r.type === "organic");
-  }
-
-  knownLocalEdibleResources() {
-    return this.localEdibleResources().filter((r) => this.knows(r.name));
-  }
-
   generateNeeds() {
     if (!this.place) return;
-    let available = [...this.knownLocalEdibleResources()];
-    const count = randomIntBetween(settings.needsPerDwellerMin, settings.needsPerDwellerMax);
-    for (let i = 0; i < count; i++) {
-      const selected = randomElement(available);
-      if (!selected) break;
-      available = available.filter(
-        (r) => r !== selected
-      );
-      this.needs.push(
-        new SurvivalNeed(
-          selected,
-          randomIntBetween(settings.needAmountMin, settings.needAmountMax),
-          randomIntBetween(settings.needFrequencyMin, settings.needFrequencyMax)
-        )
-      );
-    }
+    this.needs.push(
+      new SurvivalNeed(
+        randomIntBetween(settings.needFrequencyMin, settings.needFrequencyMax)
+      )
+    );
 
     this.needs.push(
       new ExplorationNeed(

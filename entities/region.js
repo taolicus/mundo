@@ -1,37 +1,21 @@
 import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
-  randomElement,
-  weightedPick,
-  generateName,
   chance,
   log,
 } from "../core/utils.js";
+import { drawCatalogSubset } from "../core/resources.js";
 import { newDweller } from "./population.js";
 
-function pickType() {
-  const types = settings.resourceTypes;
-  return weightedPick(
-    Object.entries(types).map(([type, cfg]) => [type, cfg.weight])
-  );
-}
-
 class Resource {
-  constructor(name, origin, tick = 0, type = pickType()) {
-    this.name = name;
-    this.weight = randomIntBetween(1, 99);
-    this.origin = origin;
-    this.type = type;
-    const config = settings.resourceTypes[type] || {};
-    this.genRate = randomIntBetween(config.rateMin ?? 1, config.rateMax ?? 4);
-    this.productionInterval = Math.round(
-      settings.productionTickInterval * (config.intervalMultiplier ?? 1)
-    );
-    this.capacity = randomIntBetween(settings.capacityBaseMin, settings.capacityBaseMax);
+  constructor(def, origin, tick = 0) {
+    this.name = def.name;
+    this.type = def.type;
+    this.genRate = def.genRate;
+    this.productionInterval = def.productionInterval;
+    this.capacity = def.capacity;
     this.amount = Math.round(this.capacity * settings.initialStockRatio);
-    this.temperatureSensitive = chance(
-      settings.sensitivityByType[type] ?? settings.temperatureSensitivityProb
-    );
+    this.temperatureSensitive = def.temperatureSensitive;
     this.nextProductionTick = tick + randomIntBetween(0, this.productionInterval);
   }
 }
@@ -70,7 +54,7 @@ export class Route {
 }
 
 export class Region {
-  constructor(name, x, y) {
+  constructor(name, x, y, catalog, tick = 0) {
     this.name = name;
     this.x = x;
     this.y = y;
@@ -78,15 +62,24 @@ export class Region {
     this.resources = [];
     this.habitants = [];
     this.routes = [];
-    this.generateResources();
+    this.catalog = catalog;
+    this.generateResources(catalog, tick);
   }
 
-  generateResources() {
-    const count = randomIntBetween(settings.resourcesPerPlaceMin, settings.resourcesPerPlaceMax);
-    for (let i = 0; i < count; i++) {
-      const name = generateName();
-      const resource = new Resource(name, this);
-      this.resources.push(resource);
+  generateResources(catalog, tick = 0) {
+    const foodDefs = drawCatalogSubset(
+      catalog.foods,
+      randomIntBetween(settings.foodsPerPlaceMin, settings.foodsPerPlaceMax)
+    );
+    const mineralDefs = drawCatalogSubset(
+      catalog.minerals,
+      randomIntBetween(settings.mineralsPerPlaceMin, settings.mineralsPerPlaceMax)
+    );
+    for (const def of foodDefs) {
+      this.resources.push(new Resource(def, this, tick));
+    }
+    for (const def of mineralDefs) {
+      this.resources.push(new Resource(def, this, tick));
     }
   }
 

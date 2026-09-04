@@ -95,8 +95,12 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ### Knowledge / indirect discovery (open thread)
 - ✅ **Knowledge spread channel added.** Dwellers gossip (`Dweller.shareKnowledgeWith`, chance `gossipProb:0.05` per co-located tick): a dweller at a place occasionally shares its `knowledge` (resource names) and `suppliers` map with a random co-dweller. This decouples "...you need what you already have locally" — awareness now propagates across the network without requiring personal visits. Verified: avg ~30 supplier entries per dweller on an 8-place map.
 - `visitedPlaceNames` remains purely physical (not spread), so exploration's "unvisited" selection is unaffected.
-- **Survival seeking (`seeking X`) is structurally blocked by the resource model:** each resource name is generated unique to one place, so a local food in shortage exists *only* at the dweller's own place — a known supplier is always the dweller's own place, so seeking elsewhere is impossible. Multi-hop seeking (travel toward the closest known supplier place, `SurvivalNeed.behaviour`) is implemented and correct, but moot until resources are shared across places (or foods become substitutable).
-- **Open decision:** to make `seeking` fire narratively, either (a) share resource *types*/generic foods across nearby places, or (b) let several places produce the same resource name so a shortage in one can be relieved from a neighbor, or (c) drop survival-seeking as a narrative driver (exploration + gather already give distinct reasons).
+
+### Shared resources + substitutable foods + preferences — ✅ done
+- **Shared resource catalog** (`core/resources.js`, per World): ~6-9 foods + 3-5 minerals with shared names; each place draws a subset (`drawCatalogSubset` in `Region`), so the same food exists in multiple places. Verified: 27 of 28 place-pairs share ≥1 food, so a shortage in one place can be relieved from a neighbor.
+- **Substitutable foods:** `SurvivalNeed` is now generic hunger — eats *any* local known organic resource; goes hungry only if none is available; then seeks the nearest known place with food (multi-hop: head toward the neighbor closest to a food place), reason `seeking <preferred food>` / `seeking food`.
+- **Food preferences:** each dweller has `tastes` — a stable randomized ranking of catalog foods (index 0 = favourite). Used for (a) consumption choice (eats its highest-ranked available food) and (b) the seeking reason. Dweller panel shows a `likes` row.
+- **Result:** all three travel reasons now fire together — `out of curiosity`, `to gather <name>`, and `seeking <food>` — with healthier survival (population grows).
 
 ### UI
 - ✅ **Layer separation done.** `ui/` is the browser adapter (canvas/DOM/controls/panel); `core/` has no DOM. Rendering is `render.js`; controls/stats/panel in `ui/`.

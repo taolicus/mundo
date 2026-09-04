@@ -7,6 +7,7 @@ import {
 } from "../core/utils.js";
 import { Region, Route } from "./region.js";
 import { populatePlaces } from "./population.js";
+import { makeCatalog } from "../core/resources.js";
 
 export class World {
   constructor(w, h) {
@@ -14,6 +15,7 @@ export class World {
     this.height = h;
     this.places = [];
     this.tick = 0;
+    this.catalog = makeCatalog();
     this.generatePlaces();
   }
 
@@ -42,7 +44,8 @@ export class World {
           randomIntBetween(
             settings.drawSize,
             this.height - settings.drawSize * 2
-          )
+          ),
+          this.catalog
         );
 
         const tooClose = this.places.some(
