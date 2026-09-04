@@ -183,7 +183,11 @@ function renderDweller(dweller) {
     back +
       row("age", dweller.age) +
       row("activity", dweller.activity || "resting") +
-      row("place", dweller.place ? dweller.place.name : "traveling") +
+      row("place", dweller.route
+        ? `${dweller.route.origin.name} → ${dweller.route.destination.name}`
+        : dweller.place
+          ? dweller.place.name
+          : "—") +
       (needs
         ? "<br><span style='color:#888'>needs</span><br>" + needs
         : "")
