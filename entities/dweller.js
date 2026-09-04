@@ -3,6 +3,7 @@ import {
   randomIntBetween,
   randomElement,
   weightedPick,
+  chance,
   log,
 } from "../core/utils.js";
 import { travel as travelBehaviour } from "../core/behaviours/travel.js";
@@ -79,7 +80,7 @@ class SurvivalNeed extends Need {
   }
 
   behaviour(dweller) {
-    if (!dweller.place || this.urgencyFrac < settings.behaviourThreshold) return null;
+    if (!dweller.place || !this.shortageAnnounced) return null;
     const name = this.resource.name;
     if (!dweller.suppliers.has(name)) return null;
     const suppliers = dweller.suppliers.get(name);
@@ -87,6 +88,24 @@ class SurvivalNeed extends Need {
       if (suppliers.has(route.destination) && route.destination !== dweller.place) {
         return { behaviour: "travel", route, reason: `seeking ${name}` };
       }
+    }
+    let bestRoute = null;
+    let bestDist = Infinity;
+    for (const route of dweller.place.routes) {
+      for (const supplier of suppliers) {
+        if (supplier === dweller.place) continue;
+        const dist = Math.hypot(
+          route.destination.x - supplier.x,
+          route.destination.y - supplier.y
+        );
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestRoute = route;
+        }
+      }
+    }
+    if (bestRoute) {
+      return { behaviour: "travel", route: bestRoute, reason: `seeking ${name}` };
     }
     return null;
   }
@@ -144,9 +163,11 @@ class GatherNeed extends Need {
     const candidates = [];
     for (const route of dweller.place.routes) {
       if (route.destination === dweller.place) continue;
-      if (!dweller.visitedPlaceNames.has(route.destination.name)) continue;
       const missing = route.destination.resources.find(
-        (r) => !localNames.has(r.name) && dweller.knows(r.name)
+        (r) =>
+          !localNames.has(r.name) &&
+          dweller.knows(r.name) &&
+          dweller.suppliers.get(r.name)?.has(route.destination)
       );
       if (missing) candidates.push({ route, resource: missing });
     }
@@ -200,6 +221,18 @@ export class Dweller {
 
   knows(name) {
     return this.knowledge.has(name);
+  }
+
+  shareKnowledgeWith(other) {
+    for (const name of this.knowledge) other.knowledge.add(name);
+    for (const [name, places] of this.suppliers) {
+      let target = other.suppliers.get(name);
+      if (!target) {
+        target = new Set();
+        other.suppliers.set(name, target);
+      }
+      for (const place of places) target.add(place);
+    }
   }
 
   localEdibleResources() {
@@ -297,6 +330,13 @@ export class Dweller {
     if (this.route) {
       travelBehaviour.step(this);
     } else if (this.place) {
+      if (
+        this.place.habitants.length > 1 &&
+        chance(settings.gossipProb)
+      ) {
+        const peers = this.place.habitants.filter((h) => h !== this);
+        this.shareKnowledgeWith(randomElement(peers));
+      }
       this.decideBehaviour();
     }
   }

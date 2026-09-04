@@ -93,9 +93,10 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - (Note: there is also a future *Population module* — an aggregate/statistics owner — separate from this rename.)
 
 ### Knowledge / indirect discovery (open thread)
-- Knowledge system stays as-is for now but needs more work.
-- Open problem: knowledge currently *inhibits* travel (you only need what you already have locally). Indirect knowledge — learning of resources/places from other traveled dwellers — is what should genuinely *drive* travel and discovery.
-- Design a natural channel for knowledge to spread between dwellers.
+- ✅ **Knowledge spread channel added.** Dwellers gossip (`Dweller.shareKnowledgeWith`, chance `gossipProb:0.05` per co-located tick): a dweller at a place occasionally shares its `knowledge` (resource names) and `suppliers` map with a random co-dweller. This decouples "...you need what you already have locally" — awareness now propagates across the network without requiring personal visits. Verified: avg ~30 supplier entries per dweller on an 8-place map.
+- `visitedPlaceNames` remains purely physical (not spread), so exploration's "unvisited" selection is unaffected.
+- **Survival seeking (`seeking X`) is structurally blocked by the resource model:** each resource name is generated unique to one place, so a local food in shortage exists *only* at the dweller's own place — a known supplier is always the dweller's own place, so seeking elsewhere is impossible. Multi-hop seeking (travel toward the closest known supplier place, `SurvivalNeed.behaviour`) is implemented and correct, but moot until resources are shared across places (or foods become substitutable).
+- **Open decision:** to make `seeking` fire narratively, either (a) share resource *types*/generic foods across nearby places, or (b) let several places produce the same resource name so a shortage in one can be relieved from a neighbor, or (c) drop survival-seeking as a narrative driver (exploration + gather already give distinct reasons).
 
 ### UI
 - ✅ **Layer separation done.** `ui/` is the browser adapter (canvas/DOM/controls/panel); `core/` has no DOM. Rendering is `render.js`; controls/stats/panel in `ui/`.

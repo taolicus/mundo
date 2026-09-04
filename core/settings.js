@@ -52,6 +52,7 @@ export const settings = {
   gatherFrequencyMin: 240,
   gatherFrequencyMax: 600,
   gatherWeight: 1.5,
+  gossipProb: 0.05,
   survivalWeight: 3,
   survivalUrgencyRamp: 0.05,
   behaviourThreshold: 0.25,
