@@ -188,9 +188,13 @@ function renderDweller(dweller) {
     ? dweller.needs
         .map((n) => {
           const raw = n.urgency(dweller);
-          const ratio = Math.max(0, Math.min(1, raw / (n.type === "survival" ? 3 : 1)));
+          const isHunger = n.type === "survival";
+          const cycle = isHunger
+            ? Math.max(0, Math.min(1, n.lastConsumption / n.frequency))
+            : raw;
+          const ratio = isHunger ? cycle : Math.max(0, Math.min(1, raw));
           const label =
-            n.type === "survival"
+            isHunger
               ? "hunger"
               : n.type === "exploration"
                 ? "explore"
@@ -199,10 +203,11 @@ function renderDweller(dweller) {
                   : n.type === "tend"
                     ? "tend"
                     : "homing";
-          return (
-            row(`need · ${label}`, n.type === "survival" ? raw.toFixed(1) : `every ${n.frequency}t`) +
-            bar(ratio)
-          );
+          const value = isHunger
+            ? `${Math.round(cycle * 100)}%` +
+              (raw > 0 ? ` · starving ${raw.toFixed(1)}` : "")
+            : `every ${n.frequency}t`;
+          return row(`need · ${label}`, value) + bar(ratio);
         })
         .join("")
     : "";
