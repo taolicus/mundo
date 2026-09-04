@@ -3,83 +3,83 @@ const panelTitle = document.getElementById("panelTitle");
 const panelBody = document.getElementById("panelBody");
 const panelClose = document.getElementById("panelClose");
 
-panelClose.addEventListener("click", ocultarPanel);
+panelClose.addEventListener("click", hidePanel);
 
-let volverLugar = null;
-let seleccionActual = null;
+let backPlace = null;
+let currentSelection = null;
 
-function mostrarPanel(titulo, contenido) {
-  panelTitle.textContent = titulo;
-  panelBody.innerHTML = contenido;
+function showPanel(title, content) {
+  panelTitle.textContent = title;
+  panelBody.innerHTML = content;
   panel.style.display = "block";
 }
 
-function ocultarPanel() {
+function hidePanel() {
   panel.style.display = "none";
-  seleccionActual = null;
+  currentSelection = null;
 }
 
-export { ocultarPanel };
+export { hidePanel };
 
-function actualizarPanel() {
-  if (seleccionActual) {
-    if (seleccionActual.tipo === "lugar") renderLugar(seleccionActual.lugar);
-    else if (seleccionActual.tipo === "habitante") renderHabitante(seleccionActual.habitante);
+function updatePanel() {
+  if (currentSelection) {
+    if (currentSelection.type === "place") renderPlace(currentSelection.place);
+    else if (currentSelection.type === "dweller") renderDweller(currentSelection.dweller);
   }
 }
 
-export { actualizarPanel };
+export { updatePanel };
 
-function fila(etiqueta, valor) {
-  return `<div class="row"><span>${etiqueta}</span><b>${valor}</b></div>`;
+function row(label, value) {
+  return `<div class="row"><span>${label}</span><b>${value}</b></div>`;
 }
 
-function barra(ratio) {
+function bar(ratio) {
   const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
   return `<div class="bar"><div class="fill" style="width:${pct}%"></div></div>`;
 }
 
-function enlaceHabitante(habitante) {
-  return `<a href="#" data-hab="${habitante.nombre}" class="hab-link" style="color:#4a4;text-decoration:none">${habitante.nombre}</a>`;
+function dwellerLink(dweller) {
+  return `<a href="#" data-hab="${dweller.name}" class="hab-link" style="color:#4a4;text-decoration:none">${dweller.name}</a>`;
 }
 
-export function mostrarLugar(lugar) {
-  seleccionActual = { tipo: "lugar", lugar };
-  renderLugar(lugar);
+export function showPlace(place) {
+  currentSelection = { type: "place", place };
+  renderPlace(place);
 }
 
-function renderLugar(lugar) {
-  volverLugar = lugar;
+function renderPlace(place) {
+  backPlace = place;
 
-  const recursos = lugar.recursos
+  const resources = place.resources
     .map((r) => {
-      const ratio = r.cantidad / r.capacidad;
+      const ratio = r.amount / r.capacity;
       return (
-        fila(r.nombre, `${r.cantidad} / ${r.capacidad}`) +
-        barra(ratio) +
-        fila("tipo", `${r.tipo} · tasa ${r.generacionRate} · temp ${r.sensibleTemperatura ? "sí" : "no"}`) +
+        row(r.name, `${r.amount} / ${r.capacity}`) +
+        bar(ratio) +
+        row("type", `${r.type} · rate ${r.genRate} · temp ${r.temperatureSensitive ? "yes" : "no"}`) +
         "<br>"
       );
     })
     .join("");
 
-  const trabajadores = lugar.habitantes.filter((h) => h.trabajo).length;
+  const workers = place.habitants.filter((h) => h.job).length;
 
-  const listaHabitantes = lugar.habitantes
-    .map((h) => fila(enlaceHabitante(h), h.trabajo ? h.trabajo.nombre : "sin trabajo"))
+  const dwellerList = place.habitants
+    .map((h) => row(dwellerLink(h), h.job ? h.job.name : "no job"))
     .join("");
 
-  mostrarPanel(
-    `LUGAR · ${lugar.nombre}`,
-    fila("temperatura", lugar.temperatura.toFixed(1) + "°C") +
-      fila("habitantes", lugar.habitantes.length) +
-      fila("trabajadores", trabajadores) +
-      fila("recursos", lugar.recursos.length) +
-      fila("descubrimientos", lugar.descubrimientos.length) +
-      "<br><span style='color:#888'>recursos</span><br>" +
-      recursos +
-      (listaHabitantes
-        ? "<span style='color:#888'>habitantes</span><br>" + listaHabitantes
+  showPanel(
+    `PLACE · ${place.name}`,
+    row("temperature", place.temperature.toFixed(1) + "°C") +
+      row("dwellers", place.habitants.length) +
+      row("workers", workers) +
+      row("resources", place.resources.length) +
+      row("discoveries", place.discoveries.length) +
+      "<br><span style='color:#888'>resources</span><br>" +
+      resources +
+      (dwellerList
+        ? "<span style='color:#888'>dwellers</span><br>" + dwellerList
         : "")
   );
 
@@ -87,55 +87,55 @@ function renderLugar(lugar) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const h = lugar.habitantes.find((hab) => hab.nombre === a.dataset.hab);
-      if (h) mostrarHabitante(h);
+      const h = place.habitants.find((d) => d.name === a.dataset.hab);
+      if (h) showDweller(h);
     });
   });
 }
 
-export function mostrarHabitante(habitante) {
-  seleccionActual = { tipo: "habitante", habitante };
-  renderHabitante(habitante);
+export function showDweller(dweller) {
+  currentSelection = { type: "dweller", dweller };
+  renderDweller(dweller);
 }
 
-function renderHabitante(habitante) {
-  const necesidades = habitante.necesidades.length
-    ? habitante.necesidades
-        .map((n) => fila(n.recurso.nombre, `${n.cantidad}u / cada ${n.frecuencia}t`))
+function renderDweller(dweller) {
+  const needs = dweller.needs.length
+    ? dweller.needs
+        .map((n) => row(n.resource.name, `${n.amount}u / every ${n.frequency}t`))
         .join("")
     : "";
 
-  const relaciones = habitante.relaciones.length
-    ? habitante.relaciones
-        .map((r) => fila(r.tipo, r.con.nombre))
+  const relations = dweller.relations.length
+    ? dweller.relations
+        .map((r) => row(r.type, r.with_.name))
         .join("")
     : "";
 
-  const volver = volverLugar
-    ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${volverLugar.nombre}</a><br>`
+  const back = backPlace
+    ? `<a href="#" id="panelBack" style="color:#8af;text-decoration:none">&larr; ${backPlace.name}</a><br>`
     : "";
 
-  mostrarPanel(
-    `HABITANTE · ${habitante.nombre}`,
-    volver +
-      fila("edad", habitante.edad) +
-      fila("lugar", habitante.lugar ? habitante.lugar.nombre : "viajando") +
-      fila("trabajo", habitante.trabajo ? habitante.trabajo.nombre : "ninguno") +
-      fila("habilidad", habitante.habilidad.toFixed(1)) +
-      (necesidades
-        ? "<br><span style='color:#888'>necesidades</span><br>" + necesidades
+  showPanel(
+    `DWELLER · ${dweller.name}`,
+    back +
+      row("age", dweller.age) +
+      row("place", dweller.place ? dweller.place.name : "traveling") +
+      row("job", dweller.job ? dweller.job.name : "none") +
+      row("skill", dweller.skill.toFixed(1)) +
+      (needs
+        ? "<br><span style='color:#888'>needs</span><br>" + needs
         : "") +
-      (relaciones
-        ? "<br><span style='color:#888'>relaciones</span><br>" + relaciones
+      (relations
+        ? "<br><span style='color:#888'>relations</span><br>" + relations
         : "")
   );
 
-  const back = panelBody.querySelector("#panelBack");
-  if (back) {
-    back.addEventListener("click", (e) => {
+  const backBtn = panelBody.querySelector("#panelBack");
+  if (backBtn) {
+    backBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (volverLugar) mostrarLugar(volverLugar);
+      if (backPlace) showPlace(backPlace);
     });
   }
 }

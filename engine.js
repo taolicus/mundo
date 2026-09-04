@@ -1,15 +1,15 @@
-import { obtenerLugar } from "./funciones.js";
-import { ajustes } from "./ajustes.js";
-import { Mundo } from "./mundo.js";
-import { dibujarMundo, construirRutasPath } from "./render.js";
-import { mostrarLugar, actualizarPanel, ocultarPanel } from "./panel.js";
+import { getRegion } from "./utils.js";
+import { settings } from "./settings.js";
+import { World } from "./world.js";
+import { drawWorld, buildRoutesPath } from "./render.js";
+import { showPlace, updatePanel, hidePanel } from "./panel.js";
 
 const dpr = window.devicePixelRatio || 1;
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let mundo;
-let dibujoRutas;
+let world;
+let routesDrawing;
 
 function resize() {
   const w = window.innerWidth;
@@ -17,23 +17,23 @@ function resize() {
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.textAlign = "center";
-  ctx.font = ajustes.tamanoDibujo * 0.8 + "px 'IBM Plex Mono', sans-serif";
+  ctx.font = settings.drawSize * 0.8 + "px 'IBM Plex Mono', sans-serif";
   ctx.letterSpacing = "2px";
-  if (mundo) {
-    mundo.width = canvas.width;
-    mundo.height = canvas.height;
+  if (world) {
+    world.width = canvas.width;
+    world.height = canvas.height;
   }
 }
 
 resize();
 
-mundo = new Mundo(canvas.width, canvas.height);
-dibujoRutas = construirRutasPath(mundo);
-dibujarMundo(ctx, mundo, 0, dibujoRutas);
+world = new World(canvas.width, canvas.height);
+routesDrawing = buildRoutesPath(world);
+drawWorld(ctx, world, 0, routesDrawing);
 
 window.addEventListener("resize", () => {
   resize();
-  dibujarMundo(ctx, mundo, 0, dibujoRutas);
+  drawWorld(ctx, world, 0, routesDrawing);
 });
 
 canvas.addEventListener("click", (event) => {
@@ -41,12 +41,12 @@ canvas.addEventListener("click", (event) => {
   const x = (event.clientX - rect.left) * (canvas.width / rect.width);
   const y = (event.clientY - rect.top) * (canvas.height / rect.height);
 
-  const lugar = obtenerLugar(x, y, mundo.lugares);
+  const place = getRegion(x, y, world.places);
 
-  if (lugar) {
-    mostrarLugar(lugar);
+  if (place) {
+    showPlace(place);
   } else {
-    ocultarPanel();
+    hidePanel();
   }
 });
 
@@ -55,31 +55,31 @@ const pauseBtn = document.getElementById("pause");
 const playBtn = document.getElementById("play");
 
 const statTick = document.getElementById("statTick");
-const statPoblacion = document.getElementById("statPoblacion");
-const statRecursos = document.getElementById("statRecursos");
-const statDescubrimientos = document.getElementById("statDescubrimientos");
+const statPopulation = document.getElementById("statPopulation");
+const statResources = document.getElementById("statResources");
+const statDiscoveries = document.getElementById("statDiscoveries");
 
-function actualizarStats() {
-  const poblacion =
-    mundo.lugares.reduce((sum, l) => sum + l.habitantes.length, 0) +
-    mundo.obtenerViajantesEnTransito().length;
-  const recursos = mundo.lugares.reduce(
-    (sum, l) => sum + l.recursos.length,
+function updateStats() {
+  const population =
+    world.places.reduce((sum, p) => sum + p.habitants.length, 0) +
+    world.getTravelersInTransit().length;
+  const resources = world.places.reduce(
+    (sum, p) => sum + p.resources.length,
     0
   );
-  const descubrimientos = mundo.lugares.reduce(
-    (sum, l) => sum + l.descubrimientos.length,
+  const discoveries = world.places.reduce(
+    (sum, p) => sum + p.discoveries.length,
     0
   );
-  statTick.textContent = mundo.tick;
-  statPoblacion.textContent = poblacion;
-  statRecursos.textContent = recursos;
-  statDescubrimientos.textContent = descubrimientos;
+  statTick.textContent = world.tick;
+  statPopulation.textContent = population;
+  statResources.textContent = resources;
+  statDiscoveries.textContent = discoveries;
 }
 
-actualizarStats();
+updateStats();
 
-const frameDuration = 1000 / ajustes.fps;
+const frameDuration = 1000 / settings.fps;
 let lastTime;
 let accumulator = 0;
 let animationId;
@@ -105,10 +105,10 @@ function pause() {
 
 function tick() {
   if (isPaused) {
-    mundo.actualizar();
-    dibujarMundo(ctx, mundo, 0, dibujoRutas);
-    actualizarStats();
-    actualizarPanel();
+    world.update();
+    drawWorld(ctx, world, 0, routesDrawing);
+    updateStats();
+    updatePanel();
   }
 }
 
@@ -121,14 +121,14 @@ function loop(currentTime) {
   accumulator += deltaTime;
 
   while (accumulator >= frameDuration) {
-    mundo.actualizar();
+    world.update();
     accumulator -= frameDuration;
   }
 
   const alpha = accumulator / frameDuration;
-  dibujarMundo(ctx, mundo, alpha, dibujoRutas);
-  actualizarStats();
-  actualizarPanel();
+  drawWorld(ctx, world, alpha, routesDrawing);
+  updateStats();
+  updatePanel();
 
   animationId = requestAnimationFrame(loop);
 }

@@ -1,28 +1,28 @@
-import { ajustes } from "./ajustes.js";
+import { settings } from "./settings.js";
 
-export function construirRutasPath(mundo) {
+export function buildRoutesPath(world) {
   const path = new Path2D();
-  for (const lugar of mundo.lugares) {
-    for (const ruta of lugar.rutas) {
-      if (lugar !== ruta.origen) continue;
-      path.moveTo(ruta.origen.x, ruta.origen.y);
-      path.lineTo(ruta.destino.x, ruta.destino.y);
+  for (const place of world.places) {
+    for (const route of place.routes) {
+      if (place !== route.origin) continue;
+      path.moveTo(route.origin.x, route.origin.y);
+      path.lineTo(route.destination.x, route.destination.y);
     }
   }
   return path;
 }
 
-function colorTemperatura(temp) {
+function tempColor(temp) {
   let r, g, b;
-  if (temp <= ajustes.tempFrioMax) {
+  if (temp <= settings.coldTempMax) {
     r = 255; g = 255; b = 255;
-  } else if (temp <= ajustes.tempTempladoMax) {
-    const t = (temp - ajustes.tempFrioMax) / (ajustes.tempTempladoMax - ajustes.tempFrioMax);
+  } else if (temp <= settings.mildTempMax) {
+    const t = (temp - settings.coldTempMax) / (settings.mildTempMax - settings.coldTempMax);
     r = Math.round(255 + (0 - 255) * t);
     g = Math.round(255 + (255 - 255) * t);
     b = Math.round(255 + (0 - 255) * t);
   } else {
-    const t = Math.min(1, (temp - ajustes.tempTempladoMax) / ajustes.tempCalurosoRango);
+    const t = Math.min(1, (temp - settings.mildTempMax) / settings.hotTempRange);
     r = Math.round(0 + (255 - 0) * t);
     g = Math.round(255 + (255 - 255) * t);
     b = Math.round(0 + (0 - 0) * t);
@@ -30,42 +30,42 @@ function colorTemperatura(temp) {
   return `rgb(${r},${g},${b})`;
 }
 
-export function dibujarMundo(ctx, mundo, alpha, dibujoRutas) {
-  ctx.clearRect(0, 0, mundo.width, mundo.height);
+export function drawWorld(ctx, world, alpha, routesDrawing) {
+  ctx.clearRect(0, 0, world.width, world.height);
 
   ctx.strokeStyle = "#666";
   ctx.lineWidth = 1;
-  ctx.stroke(dibujoRutas);
+  ctx.stroke(routesDrawing);
 
   ctx.fillStyle = "#0f0";
-  mundo.obtenerViajantesEnTransito().forEach((viajante) => {
-    const progresoActual = viajante.progresoViaje;
-    const progresoSiguiente = Math.min(
+  world.getTravelersInTransit().forEach((traveler) => {
+    const currentProgress = traveler.travelProgress;
+    const nextProgress = Math.min(
       1,
-      (viajante.tiempoViajeTranscurrido + 1) / viajante.tiempoViajeTotal
+      (traveler.elapsedTravelTime + 1) / traveler.totalTravelTime
     );
 
-    const posicionActual =
-      viajante.ruta.obtenerPosicionEnRuta(progresoActual);
-    const posicionSiguiente =
-      viajante.ruta.obtenerPosicionEnRuta(progresoSiguiente);
+    const currentPos =
+      traveler.route.getPositionOnRoute(currentProgress);
+    const nextPos =
+      traveler.route.getPositionOnRoute(nextProgress);
 
-    const posicionInterpoladaX =
-      posicionActual.x + (posicionSiguiente.x - posicionActual.x) * alpha;
-    const posicionInterpoladaY =
-      posicionActual.y + (posicionSiguiente.y - posicionActual.y) * alpha;
+    const interpX =
+      currentPos.x + (nextPos.x - currentPos.x) * alpha;
+    const interpY =
+      currentPos.y + (nextPos.y - currentPos.y) * alpha;
 
     ctx.beginPath();
-    ctx.arc(posicionInterpoladaX, posicionInterpoladaY, 5, 0, Math.PI * 2);
+    ctx.arc(interpX, interpY, 5, 0, Math.PI * 2);
     ctx.fill();
   });
 
-  for (const lugar of mundo.lugares) {
-    ctx.fillStyle = colorTemperatura(lugar.temperatura);
+  for (const place of world.places) {
+    ctx.fillStyle = tempColor(place.temperature);
     ctx.beginPath();
-    ctx.arc(lugar.x, lugar.y, ajustes.tamanoDibujo, 0, Math.PI * 2);
+    ctx.arc(place.x, place.y, settings.drawSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
-    ctx.fillText(lugar.nombre, lugar.x, lugar.y + ajustes.tamanoDibujo * 2);
+    ctx.fillText(place.name, place.x, place.y + settings.drawSize * 2);
   }
 }
