@@ -59,17 +59,17 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ## Work checklist
 
 ### Module: Behavior (core rework)
-- ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` picks survival-first and dispatches to the behaviour registry.
+- ✅ **Increment 1 (thin slice) done.** A behavior module exists: `core/behaviours/travel.js` exposes a uniform `perform(dweller, ctx)` interface. A need states what behaviour it wants via `Need.behaviour(dweller)` → `{ behaviour, route, reason }`; `Dweller.decideBehaviour` gathers intents and dispatches to the behaviour registry.
+- ✅ **Weighted urgency competition done.** Each need reports an `urgency(dweller)`; `decideBehaviour` weighted-picks among all pressing needs' intents. Survival ramps its urgency while a shortage persists and multiplies it by `survivalWeight:3` — heavily weighted but *competitive* (validated: urgency 1.0 → survival wins ~75%, urgency 0.5 → ~60%, urgency 2.0 → ~85%; below `behaviourThreshold` no trip). An intent that loses competition is *not* reset, so it stays pending.
 - **Design rule:** a need *triggers* a behaviour; travelling is just one type of behaviour (eating, gathering, social later).
 - **Next (planned):**
-  - **Weighted urgency competition** — needs accumulate intensity; dweller picks the most pressing behaviour (survival heavily weighted but *competitive*, not absolute). *Decided, deferred.*
   - **Traversal mechanics refactor** — move `startTravel`/`travel`/`travelProgress`/route traversal out of `Dweller` into the travel behaviour (currently still on `Dweller`).
   - **More behaviours** — add production/gathering later, plugging into the same interface.
 
 ### Module: Needs (generalize)
 - ✅ **Partially done.** `Need` is now a typed **behavioral driver** hierarchy: `SurvivalNeed` (consume known local resource on a shortage timer) and `ExplorationNeed` (periodic drive to visit unvisited places) are implemented and each owns its `tick` + `behaviour(intent)` logic. `collection`/`social` reserved (not built).
 - Exploration replaced the passive `exploreProb` dice roll; dwellers track `visitedPlaceNames` and prefer unvisited route destinations.
-- `Dweller.decideBehaviour` gathers each need's intent and dispatches by behaviour id — the seam future need/behaviour types plug into.
+- `Dweller.decideBehaviour` gathers each need's urgency-weighted intent and dispatches by behaviour id — the seam future need/behaviour types plug into.
 
 ### Module: Environment (extract + simplify) — **not started**
 - Create a separate **environment module** owning climate (temperature) per region, extendable to weather/seasons later.

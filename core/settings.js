@@ -49,6 +49,9 @@ export const settings = {
   needsPerDwellerMax: 3,
   explorationFrequencyMin: 120,
   explorationFrequencyMax: 300,
+  survivalWeight: 3,
+  survivalUrgencyRamp: 0.05,
+  behaviourThreshold: 0.25,
 
   minDistanceBetweenPlaces: 200,
   maxPlacementAttempts: 100,

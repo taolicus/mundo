@@ -2,6 +2,7 @@ import { settings } from "../core/settings.js";
 import {
   randomIntBetween,
   randomElement,
+  weightedPick,
   log,
 } from "../core/utils.js";
 import { travel as travelBehaviour } from "../core/behaviours/travel.js";
@@ -13,6 +14,14 @@ class Need {
   }
 
   tick(dweller, t) {}
+
+  urgency(dweller) {
+    return 0;
+  }
+
+  weight(dweller) {
+    return this.urgency(dweller);
+  }
 
   behaviour(dweller) {
     return null;
@@ -27,6 +36,7 @@ class SurvivalNeed extends Need {
     this.frequency = frequency;
     this.lastConsumption = randomIntBetween(0, frequency);
     this.shortageAnnounced = false;
+    this.urgencyFrac = 0;
   }
 
   tick(dweller, t) {
@@ -43,15 +53,16 @@ class SurvivalNeed extends Need {
       dweller.place.consumeResource(available, this.amount);
       this.lastConsumption = 0;
       this.activity = "eating";
-      if (this.shortageAnnounced) {
-        log(`${dweller.place.name} ${name} is available again`);
-        this.shortageAnnounced = false;
-      }
-      log(`${dweller.name} consumed ${this.amount} units of ${name}`);
+      this.urgencyFrac = 0;
+      this.shortageAnnounced = false;
     } else {
       dweller.health -= settings.unmetNeedDamage;
       this.lastConsumption = 0;
       this.activity = "hungry";
+      this.urgencyFrac = Math.min(
+        3,
+        this.urgencyFrac + settings.survivalUrgencyRamp
+      );
       if (!this.shortageAnnounced) {
         log(`${dweller.place.name} needs ${name} but there is not enough`);
         this.shortageAnnounced = true;
@@ -59,8 +70,16 @@ class SurvivalNeed extends Need {
     }
   }
 
+  urgency(dweller) {
+    return this.urgencyFrac;
+  }
+
+  weight(dweller) {
+    return this.urgencyFrac * settings.survivalWeight;
+  }
+
   behaviour(dweller) {
-    if (!dweller.place || !this.shortageAnnounced) return null;
+    if (!dweller.place || this.urgencyFrac < settings.behaviourThreshold) return null;
     const name = this.resource.name;
     if (!dweller.suppliers.has(name)) return null;
     const suppliers = dweller.suppliers.get(name);
@@ -84,15 +103,18 @@ class ExplorationNeed extends Need {
     this.lastExplored++;
   }
 
+  urgency(dweller) {
+    return Math.min(1, this.lastExplored / this.frequency);
+  }
+
   behaviour(dweller) {
-    if (this.lastExplored < this.frequency) return null;
+    if (this.urgency(dweller) < settings.behaviourThreshold) return null;
     if (!dweller.place || dweller.place.routes.length === 0) return null;
     const unvisited = dweller.place.routes.filter(
       (route) => !dweller.visitedPlaceNames.has(route.destination.name)
     );
     const route = unvisited.length > 0 ? randomElement(unvisited) : randomElement(dweller.place.routes);
-    this.lastExplored = 0;
-    return { behaviour: "travel", route, reason: "out of curiosity" };
+    return { behaviour: "travel", route, reason: "out of curiosity", need: this };
   }
 }
 
@@ -254,22 +276,21 @@ export class Dweller {
   }
 
   decideBehaviour() {
-    let survival = null;
-    let fallback = null;
-
+    const candidates = [];
     for (const need of this.needs) {
       const intent = need.behaviour(this);
       if (!intent) continue;
-      if (need.type === "survival" && !survival) {
-        survival = intent;
-      } else if (!fallback) {
-        fallback = intent;
-      }
+      const weight = need.weight(this);
+      if (weight <= 0) continue;
+      candidates.push([intent, weight]);
     }
 
-    const chosen = survival || fallback;
-    if (!chosen) return;
+    if (candidates.length === 0) return;
 
+    const chosen = weightedPick(candidates);
+    if (chosen.need && chosen.need.type === "exploration") {
+      chosen.need.lastExplored = 0;
+    }
     switch (chosen.behaviour) {
       case "travel":
         travelBehaviour.perform(this, chosen);
