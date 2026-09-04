@@ -137,6 +137,47 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 - `test/world.test.js` — world invariants over a 4k-tick horizon: travellers/residents buckets disjoint, all alive, never-empty world, gather fires, `endShare >= 0.5` at origin.
 - Expectations: green, deterministic-ish (randomness seeded per test run by the runner), typically run 3× for confidence.
 
+## Honesty inventory (what this sim does and does not model)
+
+Kept here for future reference and to keep the sim's claims honest. Broad strokes, not exhaustive.
+
+### Simulating reasonably accurately
+- **Latitude climate:** temperature falls monotonically away from an anchored equator, warms in the day, and follows a phase-corrected annual sine (coldest ≈ mid-winter day 315, warmest ≈ mid-summer day 135); seasons line up with that curve.
+- **Distance costs:** longer routes genuinely take longer to cross, and travel time scales with temperature and the traveler's age — distance is a real constraint, not a hat.
+- **Scarcity consequences:** lacking food drains health and eventually kills; an unmet shortage forces seeking a known food source elsewhere.
+- **Knowledge is local:** dwellers only know resources they personally visited or were told about; gossip spreads awareness through co-location, and you can only gather what you know where. No telepathic omniscience.
+- **Spread-and-cluster tension:** homing pressure and personality traits (`homebody`, `tastes`, `isCurious`) produce real individual variety and a visible seasonal rhythm — apart in mild seasons, pulled home in the extremes.
+- **Old age:** mortality hazard rises with age, the very old barely roam and move slowly, and nobody outlives a hard lifespan cap.
+- **Seasonal logistics:** hostile temperatures genuinely suspend and slow optional long-distance movement.
+
+### Simulating inaccurately (approximations, knowingly)
+- **Time:** one tick = one hour and every dweller acts synchronously; no simultaneity, no per-activity durations, no nights/days off, seasons are exactly 90 days, and every year is a clone of the last.
+- **Climate:** a pure latitude × time-of-year formula — no weather, clouds, rain, drought, altitude, or year-to-year variability; temperature is a shade over an interpolated number, never a lived condition (no clothing, shelter, fire, or acclimation).
+- **Travel:** routes are abstract straight edges; a traveler is a dot with a progress percentage, not a body — no fatigue, no food/water consumed en route, no injury, no per-stretch conditions (hostility uses the endpoints' current temps), no rest stops, and arrival is a teleport from the edge. Speeds are integer ticks.
+- **Aging/mobility:** one scalar folds strength, stamina, health, and willingness together; it only changes at integer birthdays; the lone causes of death are "old age" and "malnutrition".
+- **Needs as clocks:** needs are periodic countdown meters, not metabolism — no satiety, growth, or sleep physiology.
+- **Economy:** resources are flat scalar pools regenerating at a fixed rate regardless of demographics, harvest, season, or climate; "tending" adds a fixed amount; "food" is a single abstraction with no plants/animals/digestibility.
+- **Population:** births are a flat chance per place per tick with a per-place cap — no couples, maturity, gender, heredity, or resource-driven carrying capacity beyond starvation deaths.
+- **Knowledge transmission:** gossip passes copies of names + supplier pointers with zero distortion and no forgetting; no lies, gaps, or demonstration needed.
+- **Personality:** single static rolls at birth — no development, no change over a lifetime.
+- **Route temperature:** the mean of both endpoints at the current moment, smoothing both ends into one number.
+- **Movement, in general:** dwellers exist at places or as abstract mid-route percentages — there is no continuous spatial path.
+- **Statistics:** nothing is tracked beyond a bounded event-log ring buffer, so *counts undercount*; behavior is verified stochastically across seeds, not by construction.
+
+### Decidedly not simulating at all
+- **Reproduction/genetics:** no mating, kinship, family, lineage, heredity, or hereditary traits; names are generated 3-letter tokens, not passed down.
+- **Society & conflict:** no culture, governance, trade, money, markets, division of labor, roles, warfare, alliances, law, or crime; social contact is one mechanic (gossip).
+- **Cognition:** no memory of events (only sets of names), no planning, no learned-from-experience behavior, no goals beyond need meters, no emotion.
+- **Communication:** no language, writing, maps, or signage; just one-shot gossiped resource names.
+- **Infrastructure:** no construction, road-building, settlement founding by dwellers, or freight — the world's places are pre-existing named points.
+- **Weather:** no rain, snow layers, clouds, wind, storms, floods, or droughts (the winter tint is purely visual).
+- **Ecology/biology:** no agriculture, crops, livestock, predation, disease epidemics, parasites, seasonality of growth, or any other species.
+- **Physics/space:** no collision, line-of-sight, terrain elevation, water bodies, or impassable features.
+- **Extraction/tech:** no tools, mining yields, carrying capacity, fuel, crafting, or technological progression; minerals are decorative names.
+- **Medicine & injury:** no illness, injury, recovery, or care from others.
+- **Death beyond removal:** no funerals, mourning, or knowledge inheritance; the dead simply leave the lists.
+- **Experience/aging nuance:** no meaningful life stages beyond the mobility/curiosity curves; no risk assessment or strategic reasoning.
+
 ## Repository / sharing notes
 
 This README is the reference context for a fresh LLM session. On starting work, read it plus the module files, then run a syntax check and a quick `World`-construction smoke test (see prior session practice: `node --check <file>` for each module, plus instantiating `World` with node to confirm the module graph resolves).
