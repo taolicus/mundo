@@ -2,30 +2,61 @@
 
 Un sandbox de exploración de narrativa emergente. Una simulación mínima con lugares, recursos, habitantes, necesidades y relaciones — diseñada para observar cómo reglas simples producen historias, no para modelar la realidad con precisión.
 
-## Roadmap — Sistema de Recursos
+## Arquitectura
 
-### Fase 1: Tasas de generación y capacidad
+```
+index.html   — shell HTML + canvas + panel de inspección
+motor.js     — motor / bucle del juego (timestep, input, stats)
+mundo.js     — estado y dinámica del mundo (lugares, rutas, tick)
+lugar.js     — Lugar, Recurso, Ruta (clima, recursos, descubrimientos)
+habitante.js — Habitante, Necesidad, Relacion (necesidades, trabajo, viajes)
+poblacion.js — generación inicial de habitantes por lugar
+render.js    — renderizado (canvas, color por temperatura, rutas, viajantes)
+panel.js     — vista de inspección (lugar / habitante)
+funciones.js — utilidades puras (aleatoriedad, nombres, distancia)
+ajustes.js   — parámetros de simulación centralizados (fácil de ajustar)
+```
 
-Cada recurso tiene una tasa base de generación y una capacidad máxima de almacenamiento.
+## Roadmap
 
-- `Recurso` obtiene: `generacionRate`, `capacidad`, `tipo`, `sensibleTemperatura`
-- Producción respetando capacidad: `min(cantidad + rate, capacidad)`
-- Recursos sensibles a temperatura modulan su tasa según la temperatura del lugar
+### ✅ Fase 1: Tasas de generación y capacidad — implementado
 
-### Fase 2: Producción de habitantes (asignación explícita)
+`Recurso` tiene `generacionRate`, `capacidad`, `tipo` y `sensibleTemperatura`. La producción respeta la capacidad y los recursos sensibles a temperatura modulan su tasa según la temperatura del lugar.
 
-Los habitantes se asignan a trabajar en un recurso específico, produciéndolo con un multiplicador personal.
+### ✅ Fase 2: Producción de habitantes — implementado
 
-- `Habitante.trabajo` — referencia al recurso asignado
-- `Habitante.habilidad` — multiplicador aleatorio (0.5–2.0)
-- Al llegar a un lugar, el habitante evalúa qué recurso necesita más trabajadores
-- Producción del lugar = suma de habilidades × tasa base del recurso
+Los habitantes se asignan a un `trabajo` y producen ese recurso según su `habilidad`. La producción de cada recurso es `rate × factorTemperatura × (1 + sumaHabilidades × contribucionTrabajador)`, con un techo de almacenamiento. La asignación de trabajo ocurre inicialmente y al llegar a un lugar.
 
-### Fase 3: Crafting emergente
+### ✅ Fase 3: Crafting emergente — implementado
 
-Nuevos tipos de recursos surgen de combinaciones, no de recetas predefinidas.
+Cuando un lugar acumula suficiente stock de 2+ recursos, hay una chance de descubrir un recurso nuevo que hereda rasgos de sus componentes (peso promedio, tipo combinado, promedios de tasa y capacidad). Cada descubrimiento se registra como evento narrativo.
 
-- Cuando un lugar acumula suficiente de 2+ tipos, hay chance de descubrir un nuevo recurso
-- El nuevo recurso hereda rasgos de sus componentes (peso promedio, tipo combinado)
-- Descubrimiento registrado como evento narrativo
-- Recursos descubridos pueden ser producidos por habitantes con habilidad adecuada
+### ⬜ Fase 4: Ciclo de vida — siguiente
+
+Hacer que los habitantes se sientan vivos y que la población sea dinámica:
+
+- **Envejecimiento** y **muerte**: `edad` avanza con el tick; los habitantes mueren por vejez y por necesidades insatisfechas prolongadas (el campo `vive` aún no se usa).
+- **Nacimiento**: nuevos habitantes aparecen cuando el lugar tiene recursos en superávit.
+- **Población dinámica**: permitir que la población suba y baje según el balance recursos/necesidades.
+
+### ⬜ Fase 5: Viaje por necesidad
+
+Hacer que el viaje tenga propósito y no sea puramente aleatorio:
+
+- Los habitantes eligen destinos según sus **necesidades** (recursos que faltan en su lugar, oportunidades de trabajo).
+- Migración entre lugares en respuesta a escasez o abundancia, impulsando narrativas emergentes reales.
+
+### ⬜ Fase 6: Mundo físico
+
+Dar consecuencias tangibles al clima y al terreno:
+
+- **Efectos de temperatura** sobre necesidades (climas fríos requieren más recursos) y sobre el confort/decisiones de los habitantes.
+- **Meteorología**: variable climática regional que perturba temperatura y tasas de recurso.
+- **Especialización de lugares**: no todos pueden producir los mismos tipos (agricultura vs. minería), para incentivar el comercio y el viaje.
+- **Rendimientos decrecientes / agotamiento**: sobre-explotación reduce la capacidad a largo plazo; el abandono permite recuperarla.
+
+### ⬜ Fase 7: Economía (ambicioso)
+
+- **Valor / precio** según escasez, para que el viaje y el intercambio tengan lógica económica.
+- **Relaciones que evolucionan**: la intensidad cambia con la proximidad y las necesidades satisfechas.
+- Preferencia de **trabajo por habilidad** en lugar de asignación aleatoria.

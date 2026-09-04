@@ -60,10 +60,9 @@ const statRecursos = document.getElementById("statRecursos");
 const statDescubrimientos = document.getElementById("statDescubrimientos");
 
 function actualizarStats() {
-  const poblacion = mundo.lugares.reduce(
-    (sum, l) => sum + l.habitantes.length,
-    0
-  );
+  const poblacion =
+    mundo.lugares.reduce((sum, l) => sum + l.habitantes.length, 0) +
+    mundo.obtenerViajantesEnTransito().length;
   const recursos = mundo.lugares.reduce(
     (sum, l) => sum + l.recursos.length,
     0

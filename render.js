@@ -14,15 +14,15 @@ export function construirRutasPath(mundo) {
 
 function colorTemperatura(temp) {
   let r, g, b;
-  if (temp <= ajustes.TEMP_FRIO_MAX) {
+  if (temp <= ajustes.tempFrioMax) {
     r = 255; g = 255; b = 255;
-  } else if (temp <= ajustes.TEMP_TEMPLADO_MAX) {
-    const t = (temp - ajustes.TEMP_FRIO_MAX) / (ajustes.TEMP_TEMPLADO_MAX - ajustes.TEMP_FRIO_MAX);
+  } else if (temp <= ajustes.tempTempladoMax) {
+    const t = (temp - ajustes.tempFrioMax) / (ajustes.tempTempladoMax - ajustes.tempFrioMax);
     r = Math.round(255 + (0 - 255) * t);
     g = Math.round(255 + (255 - 255) * t);
     b = Math.round(255 + (0 - 255) * t);
   } else {
-    const t = Math.min(1, (temp - ajustes.TEMP_TEMPLADO_MAX) / ajustes.TEMP_CALUROSO_RANGO);
+    const t = Math.min(1, (temp - ajustes.tempTempladoMax) / ajustes.tempCalurosoRango);
     r = Math.round(0 + (255 - 0) * t);
     g = Math.round(255 + (255 - 255) * t);
     b = Math.round(0 + (0 - 0) * t);

@@ -26,21 +26,28 @@ class Relacion {
 }
 
 export class Habitante {
-  constructor(nombre, origen, lugar) {
+  constructor(nombre, origen, lugar, tick = 0) {
     this.nombre = nombre;
-    this.edad = numberoAleatorioEntre(1, 100);
     this.origen = origen;
+    this.lugar = lugar;
     this.vive = true;
+    this.edad = numberoAleatorioEntre(ajustes.edadInicialMin, ajustes.edadInicialMax);
+    this.salud = numberoAleatorioEntre(ajustes.saludInicialMin, ajustes.saludInicialMax);
+    this.edadMaxima = numberoAleatorioEntre(ajustes.edadMaximaMin, ajustes.edadMaximaMax);
+    this.proxAnio = tick + this.proxCumpleanios();
     this.necesidades = [];
     this.relaciones = [];
-    this.lugar = lugar;
     this.ruta = null;
     this.progresoViaje = 0;
     this.tiempoViajeTotal = 0;
     this.tiempoViajeTranscurrido = 0;
     this.trabajo = null;
-    this.habilidad = numberoAleatorioEntre(ajustes.habilidadMin, ajustes.habilidadMax) / ajustes.HABILIDAD_DIVISOR;
+    this.habilidad = numberoAleatorioEntre(ajustes.habilidadMin, ajustes.habilidadMax) / ajustes.habilidadDivisor;
     this.generarNecesidadesBasicas();
+  }
+
+  proxCumpleanios() {
+    return numberoAleatorioEntre(0, ajustes.tickPorAnio);
   }
 
   agregarRelacion(habitante, tipo, intensidad) {
@@ -49,8 +56,9 @@ export class Habitante {
   }
 
   generarRelaciones() {
+    if (!this.lugar) return;
     const otrosHabitantes = this.lugar.habitantes.filter((h) => h !== this);
-    const maxRelaciones = Math.ceil(otrosHabitantes.length * ajustes.MAX_RELACIONES_RATIO);
+    const maxRelaciones = Math.ceil(otrosHabitantes.length * ajustes.maxRelacionesRatio);
     const cantidadRelaciones = numberoAleatorioEntre(0, maxRelaciones);
 
     const habitantesRelacionados = [];
@@ -76,7 +84,7 @@ export class Habitante {
   }
 
   generarNecesidad(recursos) {
-    if (umbral(ajustes.PROB_NECESIDAD)) {
+    if (umbral(ajustes.probNecesidad)) {
       const recurso = elementoAleatorio(recursos);
       const necesidad = new Necesidad(recurso);
       this.necesidades.push(necesidad);
@@ -86,8 +94,14 @@ export class Habitante {
     }
   }
 
+  recursosComestibles() {
+    if (!this.lugar) return [];
+    return this.lugar.recursos.filter((r) => r.tipo === "organico");
+  }
+
   generarNecesidadesBasicas() {
-    let recursosDisponibles = [...this.lugar.recursos];
+    if (!this.lugar) return;
+    let recursosDisponibles = [...this.recursosComestibles()];
     const cantidad = numberoAleatorioEntre(ajustes.necesidadesPorHabitanteMin, ajustes.necesidadesPorHabitanteMax);
     for (let i = 0; i < cantidad; i++) {
       const recursoSeleccionado = elementoAleatorio(recursosDisponibles);
@@ -106,11 +120,36 @@ export class Habitante {
 
   asignarTrabajo() {
     if (!this.lugar || this.lugar.recursos.length === 0) return;
-    if (this.trabajo && umbral(ajustes.PROB_RETENER_TRABAJO)) return;
+    if (this.trabajo && umbral(ajustes.probRetenerTrabajo)) return;
 
     const recurso = elementoAleatorio(this.lugar.recursos);
     this.trabajo = recurso;
     log(`${this.nombre} ha sido asignado a trabajar en ${recurso.nombre}`);
+  }
+
+  envejecer(t) {
+    while (t >= this.proxAnio) {
+      this.edad++;
+      this.proxAnio += ajustes.tickPorAnio;
+    }
+  }
+
+  morir(causa) {
+    if (!this.vive) return;
+    this.vive = false;
+    const ubicacion = this.lugar ? this.lugar.nombre : "viajando";
+    log(`☠ ${this.nombre} (${this.edad} años, ${ubicacion}) ha muerto de ${causa}`);
+
+    if (this.lugar) {
+      this.lugar.habitantes = this.lugar.habitantes.filter((h) => h !== this);
+      this.lugar.habitantes.forEach((h) => {
+        h.relaciones = h.relaciones.filter((r) => r.con !== this);
+      });
+    }
+    if (this.ruta) {
+      this.ruta.removerViajante(this);
+      this.ruta = null;
+    }
   }
 
   iniciarViaje(ruta) {
@@ -134,6 +173,8 @@ export class Habitante {
       this.ruta.removerViajante(this);
       this.lugar = this.ruta.destino;
       this.lugar.habitantes.push(this);
+      this.necesidades = [];
+      this.generarNecesidadesBasicas();
       this.asignarTrabajo();
       log(
         `${this.nombre} ha llegado a ${this.ruta.destino.nombre} desde ${this.ruta.origen.nombre}`
@@ -142,7 +183,16 @@ export class Habitante {
     }
   }
 
-  actualizar() {
+  actualizar(t) {
+    if (!this.vive) return;
+
+    this.envejecer(t);
+
+    if (this.edad >= this.edadMaxima) {
+      this.morir("vejez");
+      return;
+    }
+
     if (this.lugar) {
       this.necesidades.forEach((necesidad) => {
         necesidad.ultimoConsumo++;
@@ -154,18 +204,25 @@ export class Habitante {
               `${this.nombre} ha consumido ${necesidad.cantidad} unidades de ${necesidad.recurso.nombre}`
             );
           } else {
+            this.salud -= ajustes.danyoNecesidadInsatisfecha;
+            necesidad.ultimoConsumo = 0;
             log(
               `${this.lugar.nombre} necesita consumir ${necesidad.recurso.nombre} pero no hay suficiente`
             );
           }
         }
       });
+
+      if (this.salud <= 0) {
+        this.morir("desnutrición");
+        return;
+      }
     }
 
     if (this.ruta) {
       this.viajar();
     } else if (this.lugar) {
-      if (this.lugar.rutas.length > 0 && umbral(ajustes.PROB_VIAJAR)) {
+      if (this.lugar.rutas && this.lugar.rutas.length > 0 && umbral(ajustes.probViajar)) {
         const ruta = elementoAleatorio(this.lugar.rutas);
         this.iniciarViaje(ruta);
       }

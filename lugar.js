@@ -2,21 +2,36 @@ import { ajustes } from "./ajustes.js";
 import {
   numberoAleatorioEntre,
   elementoAleatorio,
+  seleccionPesada,
   generarNombre,
   umbral,
   log,
 } from "./funciones.js";
 
+function seleccionarTipo() {
+  const tipos = ajustes.tiposRecurso;
+  return seleccionPesada(
+    Object.entries(tipos).map(([tipo, cfg]) => [tipo, cfg.pesoProbabilidad])
+  );
+}
+
 class Recurso {
-  constructor(nombre, origen) {
+  constructor(nombre, origen, tick = 0, tipo = seleccionarTipo()) {
     this.nombre = nombre;
     this.peso = numberoAleatorioEntre(1, 99);
-    this.cantidad = numberoAleatorioEntre(1, 99);
     this.origen = origen;
-    this.generacionRate = numberoAleatorioEntre(ajustes.TASA_BASE_MIN, ajustes.TASA_BASE_MAX);
-    this.capacidad = numberoAleatorioEntre(ajustes.CAPACIDAD_BASE_MIN, ajustes.CAPACIDAD_BASE_MAX);
-    this.tipo = elementoAleatorio(["organico", "mineral"]);
-    this.sensibleTemperatura = umbral(ajustes.PROB_SENSIBILIDAD_TEMPERATURA);
+    this.tipo = tipo;
+    const configTipo = ajustes.tiposRecurso[tipo] || {};
+    this.generacionRate = numberoAleatorioEntre(configTipo.tasaMin ?? 1, configTipo.tasaMax ?? 4);
+    this.intervaloProduccion = Math.round(
+      ajustes.tickIntervaloProduccion * (configTipo.intervaloMultiplicador ?? 1)
+    );
+    this.capacidad = numberoAleatorioEntre(ajustes.capacidadBaseMin, ajustes.capacidadBaseMax);
+    this.cantidad = Math.round(this.capacidad * ajustes.stockInicialRatio);
+    this.sensibleTemperatura = umbral(
+      ajustes.probabilidadSensiblePorTipo[tipo] ?? ajustes.probSensibilidadTemperatura
+    );
+    this.proximoTickProduccion = tick + numberoAleatorioEntre(0, this.intervaloProduccion);
   }
 }
 
@@ -26,7 +41,7 @@ export class Ruta {
     this.destino = destino;
     this.viajantes = [];
     this.distancia = this.calcularDistancia();
-    this.tiempoViaje = Math.max(1, Math.floor(this.distancia / ajustes.VELOCIDAD_VIAJE_DIVISOR));
+    this.tiempoViaje = Math.max(1, Math.floor(this.distancia / ajustes.velocidadViajeDivisor));
   }
 
   calcularDistancia() {
@@ -80,15 +95,15 @@ export class Lugar {
 
     const distanciaEcuador = Math.abs(yEcuador - this.y);
     const tempBase =
-      ajustes.TEMP_MAX_BASE - distanciaEcuador * ajustes.ENFRIAMIENTO_Y;
+      ajustes.tempMaxBase - distanciaEcuador * ajustes.enfriamientoY;
 
     const variacionAnual =
       Math.sin((2 * Math.PI * diaActual) / ajustes.diasEnAnio) *
-      ajustes.AMPLITUD_ANUAL;
+      ajustes.amplitudAnual;
 
     const variacionDiaria =
       Math.sin((2 * Math.PI * (t - 6)) / ajustes.horasDia) *
-      ajustes.AMPLITUD_DIARIA;
+      ajustes.amplitudDiaria;
 
     this.temperatura = tempBase + variacionAnual + variacionDiaria;
   }
@@ -108,11 +123,11 @@ export class Lugar {
 
   calcularFactorTemperatura(recurso) {
     if (!recurso.sensibleTemperatura) return 1;
-    return 1 + (this.temperatura - ajustes.TEMP_OPTIMA) * ajustes.SENSIBILIDAD_TEMPERATURA;
+    return 1 + (this.temperatura - ajustes.tempOptima) * ajustes.sensibilidadTemperatura;
   }
 
-  intentarDescubrimiento() {
-    if (this.recursos.length < 2 || !umbral(ajustes.PROB_DESCUBRIMIENTO)) return;
+  intentarDescubrimiento(t) {
+    if (this.recursos.length < 2 || !umbral(ajustes.probDescubrimiento)) return;
 
     const recursoA = elementoAleatorio(this.recursos);
     const recursoB = elementoAleatorio(this.recursos.filter((r) => r !== recursoA));
@@ -122,20 +137,21 @@ export class Lugar {
     const par = [recursoA.nombre, recursoB.nombre].sort().join("+");
     if (this.descubrimientos.includes(par)) return;
 
-    if (recursoA.cantidad > recursoA.capacidad * ajustes.UMBRAL_STOCK_DESCUBRIMIENTO &&
-        recursoB.cantidad > recursoB.capacidad * ajustes.UMBRAL_STOCK_DESCUBRIMIENTO) {
+    if (recursoA.cantidad > recursoA.capacidad * ajustes.umbralStockDescubrimiento &&
+        recursoB.cantidad > recursoB.capacidad * ajustes.umbralStockDescubrimiento) {
       this.descubrimientos.push(par);
 
       const nombre = generarNombre();
-      const nuevoRecurso = new Recurso(nombre, this);
+      const nuevoRecurso = new Recurso(nombre, this, t);
       nuevoRecurso.peso = Math.floor((recursoA.peso + recursoB.peso) / 2);
       nuevoRecurso.tipo = recursoA.tipo === recursoB.tipo ? recursoA.tipo : "hibrido";
       nuevoRecurso.generacionRate = Math.max(1, Math.floor((recursoA.generacionRate + recursoB.generacionRate) / 2));
       nuevoRecurso.capacidad = Math.floor((recursoA.capacidad + recursoB.capacidad) / 2);
       nuevoRecurso.cantidad = Math.floor((recursoA.cantidad + recursoB.cantidad) / 4);
+      nuevoRecurso.proximoTickProduccion = t + numberoAleatorioEntre(0, nuevoRecurso.intervaloProduccion);
 
-      recursoA.cantidad = Math.floor(recursoA.cantidad * (1 - ajustes.COSTO_DESCUBRIMIENTO));
-      recursoB.cantidad = Math.floor(recursoB.cantidad * (1 - ajustes.COSTO_DESCUBRIMIENTO));
+      recursoA.cantidad = Math.floor(recursoA.cantidad * (1 - ajustes.costoDescubrimiento));
+      recursoB.cantidad = Math.floor(recursoB.cantidad * (1 - ajustes.costoDescubrimiento));
 
       this.recursos.push(nuevoRecurso);
       log(
@@ -147,10 +163,16 @@ export class Lugar {
   actualizar(t) {
     this.calcularTemperatura(t);
     this.recursos.forEach((recurso) => {
+      if (t < recurso.proximoTickProduccion) return;
+      recurso.proximoTickProduccion = t + recurso.intervaloProduccion;
+
       const factor = this.calcularFactorTemperatura(recurso);
       const trabajadores = this.habitantes.filter((h) => h.trabajo === recurso);
       const sumaHabilidades = trabajadores.reduce((sum, h) => sum + h.habilidad, 0);
-      const cantidad = Math.max(0, Math.floor(recurso.generacionRate * factor * (1 + sumaHabilidades)));
+      const cantidad = Math.max(
+        0,
+        Math.floor(recurso.generacionRate * factor * (1 + sumaHabilidades * ajustes.contribucionTrabajador))
+      );
       if (cantidad > 0) {
         this.producirRecurso(recurso, cantidad);
         log(
@@ -158,6 +180,6 @@ export class Lugar {
         );
       }
     });
-    this.intentarDescubrimiento();
+    this.intentarDescubrimiento(t);
   }
 }

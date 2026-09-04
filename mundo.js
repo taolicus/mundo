@@ -74,9 +74,9 @@ export class Mundo {
     this.lugares.forEach((lugar) => lugar.actualizar(this.tick));
 
     this.lugares.forEach((lugar) => {
-      lugar.habitantes.forEach((habitante) => habitante.actualizar());
+      lugar.habitantes.forEach((habitante) => habitante.actualizar(this.tick));
     });
 
-    this.obtenerViajantesEnTransito().forEach((viajante) => viajante.actualizar());
+    this.obtenerViajantesEnTransito().forEach((viajante) => viajante.actualizar(this.tick));
   }
 }

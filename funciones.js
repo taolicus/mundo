@@ -58,6 +58,16 @@ export function elementoAleatorio(coleccion) {
   return coleccion[indiceAleatorio(coleccion)];
 }
 
+export function seleccionPesada(entradas) {
+  const total = entradas.reduce((sum, [_, peso]) => sum + peso, 0);
+  let r = Math.random() * total;
+  for (const [valor, peso] of entradas) {
+    r -= peso;
+    if (r < 0) return valor;
+  }
+  return entradas[entradas.length - 1][0];
+}
+
 export function umbral(porcentaje) {
   return Math.random() < porcentaje;
 }
