@@ -272,3 +272,119 @@ test("tasteRank returns the ordering index for a taste", () => {
   const d = new Dweller("D", p, p, 0);
   assert.equal(d.tasteRank(d.tastes[0]), 0);
 });
+
+test("mobility declines from 1 toward the floor as a dweller ages", () => {
+  const p = makePlace("A", [res("r1")]);
+  const young = new Dweller("Y", p, p, 0);
+  young.age = 0;
+  young.maxAge = 100;
+  const elder = new Dweller("E", p, p, 0);
+  elder.age = 100;
+  elder.maxAge = 100;
+  assert.equal(young.mobility(), 1);
+  assert.ok(Math.abs(elder.mobility() - settings.ageMobilityFloor) < 1e-9);
+  assert.ok(elder.mobility() < young.mobility());
+});
+
+test("natural death chance rises with age and is zero for the young", () => {
+  const p = makePlace("A", [res("r1")]);
+  const d = new Dweller("D", p, p, 0);
+  d.maxAge = 100;
+  d.age = 10;
+  const young = d.naturalDeathChance();
+  assert.ok(young > 0 && young < 1e-6);
+  d.age = 100;
+  const old = d.naturalDeathChance();
+  assert.equal(old, settings.agingDeathRate / settings.ticksPerYear);
+  assert.ok(old > young);
+});
+
+test("aged elders no longer explore out of curiosity", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r2")]);
+  const ab = { origin: a, destination: b };
+  a.routes.push(ab);
+  let d;
+  for (let i = 0; i < 50; i++) {
+    const candidate = new Dweller("D", a, a, 0);
+    if (candidate.isCurious) {
+      d = candidate;
+      break;
+    }
+  }
+  assert.ok(d, "expected a curious dweller");
+  d.age = 100;
+  d.maxAge = 100;
+  const need = d.needs.find((n) => n.type === "exploration");
+  need.lastEvent = need.frequency;
+  assert.equal(need.behaviour(d, 0), null);
+});
+
+test("gather is gated when every candidate route is hostile (frozen)", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r1"), res("r2")]);
+  a.climate = { temperature: -30 };
+  b.climate = { temperature: -30 };
+  const ab = { origin: a, destination: b };
+  a.routes.push(ab);
+  const d = new Dweller("D", a, a, 0);
+  d.learnPlace(b);
+  const need = d.needs.find((n) => n.type === "gather");
+  need.lastEvent = need.frequency;
+  assert.equal(need.behaviour(d, 0), null);
+});
+
+test("gather is gated when every candidate route is hostile (scorching)", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r1"), res("r2")]);
+  a.climate = { temperature: 45 };
+  b.climate = { temperature: 45 };
+  const ab = { origin: a, destination: b };
+  a.routes.push(ab);
+  const d = new Dweller("D", a, a, 0);
+  d.learnPlace(b);
+  const need = d.needs.find((n) => n.type === "gather");
+  need.lastEvent = need.frequency;
+  assert.equal(need.behaviour(d, 0), null);
+});
+
+test("gather heads to warmth in deep winter and to cool in high summer", () => {
+  const a = makePlace("A", [res("r1")]);
+  const north = makePlace("N", [res("r1"), res("r2")]);
+  const south = makePlace("S", [res("r1"), res("r2")]);
+  a.climate = { temperature: 10 };
+  north.climate = { temperature: 0 };
+  south.climate = { temperature: 20 };
+  const aNorth = { origin: a, destination: north };
+  const aSouth = { origin: a, destination: south };
+  a.routes.push(aNorth, aSouth);
+  const d = new Dweller("D", a, a, 0);
+  d.learnPlace(north);
+  d.learnPlace(south);
+  const need = d.needs.find((n) => n.type === "gather");
+  need.lastEvent = need.frequency;
+  const D = settings.hoursPerDay;
+
+  const winter = need.behaviour(d, D * 315);
+  assert.ok(winter);
+  assert.equal(winter.route.destination, south);
+
+  const summer = need.behaviour(d, D * 135);
+  assert.ok(summer);
+  assert.equal(summer.route.destination, north);
+});
+
+test("homing pull strengthens in both extreme seasons", () => {
+  const a = makePlace("A", [res("r1")]);
+  const b = makePlace("B", [res("r2")]);
+  const d = new Dweller("D", a, b, 0);
+  const need = d.needs.find((n) => n.type === "homing");
+  need.lastEvent = need.frequency;
+  const D = settings.hoursPerDay;
+  const spring = need.weight(d, D * 45);
+  const summer = need.weight(d, D * 135);
+  const winter = need.weight(d, D * 315);
+  assert.ok(winter > spring);
+  assert.ok(summer > spring);
+  assert.ok(Math.abs(winter - summer) < 1e-9);
+});

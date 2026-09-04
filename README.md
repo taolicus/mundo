@@ -85,9 +85,21 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 
 ### Module: Environment (extract + simplify) — ✅ done
 - A separate **environment module** exists: `core/environment.js` (`Climate`) owns temperature per region; `Region` delegates (`region.climate.update(t)`), exposing temperature via a getter for UI coloring/display only.
-- **The temperature-sensitive resource multiplier is removed** — regions produce resources purely by `genRate`. Temperature is now a cosmetic readout (region color + panel), decoupled from simulation outcomes.
+- **The temperature-sensitive resource multiplier is removed** — regions produce resources purely by `genRate`. Temperature is not a resource lever; instead it steers **travel** through the season helpers below (cold trip slowdown, winter gating of optional trips, southward preference).
 - Cleaned up associated dead settings (`resourcesPerPlaceMin/Max`, `temperatureSensitivity`, `optimalTemp`, `temperatureSensitivityProb`, `sensitivityByType`). `Climate` was re-anchored to the **world boundaries**: instead of a fixed `equatorY` pixel, `World.generatePlaces` derives `equatorY = height × equatorFrac` (0.6) and `yCooling = tempBaseMax / (equatorY − drawSize)`, so base temperature spans 0 °C at the top edge → `tempBaseMax` at the equator no matter the canvas size or device-pixel ratio (previously a tall phone canvas froze solid below y≈500 and a desktop went uniformly mild). `Region`/`Climate` accept the profile via constructor env; standalone `Climate({ y })` falls back to the old `settings.equatorY`/`yCooling`.
 - Extendable to weather/seasons later by growing `Climate`. A `seasonAt(t)` helper (`core/environment.js`) buckets the 360-day year into equal 90-day seasons — **spring 1–90, summer 91–180, autumn 181–270, winter 271–360** — and the annual temperature sine is phase-shifted (`-daysPerYear/8`) so its peak (+amplitude) lands at mid-summer (day 135) and its trough at mid-winter (day 315). The UI surfaces the season as a **SEASON** readout (color-coded) in the top bar, alongside **YEAR · DAY** (tick / `hoursPerDay`), and as a faint seasonal tint behind the world canvas. (`world.tick` is in world-hours: 1 tick = 1 hour, 24 ticks/day, 360 days/year.)
+- ✅ **Seasons now steer travel, at both extremes.** Temperature is no longer cosmetic. `core/environment.js` adds pure helpers — `annualOffset(t)`, `heatBias(t)` (±1 at mid-summer/mid-winter), `seasonExtremity(t)` (0 at equinoxes, 1 at solstices), `routeMeanTemperature(route)`, `travelTimeMultiplier(temp)`, `isHostileTrek(route)` — wired into symmetric levers:
+  1. **Extreme trips take longer.** `travel.tripTime` scales base distance time by `travelTimeMultiplier`: multiplier is 1 inside the comfort band (±`travelComfortBand:6` around `travelComfortTemp:12` °C) and grows `travelSlowness:0.03`/°C beyond it in **both** directions, capped at `travelMaxSlowdown:2.5×`.
+  2. **Extremes gate optional travel.** Exploration and Gather filter out **hostile treks** (route mean more than `unsafeDeviation:20` °C from comfort → below −8 °C or above 32 °C); Survival (getting food) and Homing (getting home) are never gated.
+  3. **Extreme seasons pull home and toward comfort.** Homing weight scales as `(1 + homingExtremityBoost·seasonExtremity)` — stronger in *both* winter and summer, weakest in the mild equinox seasons. When `|heatBias| ≥ extremityThreshold:0.5`, Gather picks the **warmest** candidate in a cold season and the **coolest** in a hot one; Survival's multi-hop target scores `dist + heatBias·climeWeight·routeTemp` so food hunts route toward warmth in winter and cool in summer. Missing climates (synthetic routes in tests, or not-yet-updated places) defensively read as comfortable → factor 1, never gated.
+
+### Aging: old-age mortality + reduced mobility — ✅ done
+- **Natural death chance** rises with age: per-tick `(age/maxAge)^agingDeathCurve × agingDeathRate/ticksPerYear` (`agingDeathCurve:3`, `agingDeathRate:0.25`/yr at maxAge). Near-invisible in youth, it creates real old-age turnover at the end of life, on top of the hard `maxAge` cap.
+- **Aging reduces mobility** (`mobility = max(ageMobilityFloor:0.3, 1 − lifeFrac·ageMobilityLoss:0.7)`):
+  - Travel **speeds** scale by `1/mobility` (elders cross the same route slower); `travel.tripTime` = base × temp multiplier ÷ mobility.
+  - Travel **chances** scale via weight multipliers on exploration/gather/homing — elders rarely pack up and roam.
+  - Curiosity is age-capped: beyond `explorationAgeCeil:0.75` of lifespan a dweller stops exploring entirely.
+  - Survival stays unsuppressed (necessity); a frail elder who must eat still seeks food.
 
 ### Births: simple rate on Population
 - ✅ **Done.** Births come from a flat attribute (`settings.birthRate`, chance per region per tick), capped by `settings.maxDwellersPerPlace`. No gender/demographics; the old surplus + adult-age-gated mechanic was removed. Model population dynamics properly later.
@@ -119,9 +131,9 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 
 - Node's built-in test runner, no dependencies: run **`node --test`** from the repo root.
 - `test/utils.test.js` — randomness/distance/name helpers incl. `randomSample` bounds.
-- `test/environment.test.js` — `Climate` (temp range, cosmetic-only).
-- `test/dweller.test.js` — need hierarchy, weighted competition, survival seeking (fix: gated on no local edible food), gather targeting, gossip subsetting, **tend** (most-depleted known local resource, no overflow), **homing** (routes toward origin, dormant at origin, resets on origin arrival), settle/`homebody` stability, death/age.
-- `test/travel.test.js` — departure/arrival, mid-route, multi-hop selection, **homebody settle scaling**.
+- `test/environment.test.js` — `Climate` (temp range), `seasonAt`, `annualOffset`, `heatBias`/`seasonExtremity`, `routeMeanTemperature` (incl. missing-climate default), `travelTimeMultiplier` (comfort band + both extremes), `isHostileTrek` (frozen + scorching).
+- `test/dweller.test.js` — need hierarchy, weighted competition, survival seeking (fix: gated on no local edible food), gather targeting, gossip subsetting, **tend** (most-depleted known local resource, no overflow), **homing** (routes toward origin, dormant at origin, resets on origin arrival), settle/`homebody` stability, death/age, **mobility curve**, **natural-death hazard**, exploration age ceiling, **hostile-trek gate** (frozen + scorching), **gather toward comfort** (warm in winter, cool in summer), **homing in both extreme seasons**.
+- `test/travel.test.js` — departure/arrival, mid-route, multi-hop selection, **homebody settle scaling**, **trip time = distance ÷ speed ÷ mobility × temperature multiplier**.
 - `test/world.test.js` — world invariants over a 4k-tick horizon: travellers/residents buckets disjoint, all alive, never-empty world, gather fires, `endShare >= 0.5` at origin.
 - Expectations: green, deterministic-ish (randomness seeded per test run by the runner), typically run 3× for confidence.
 

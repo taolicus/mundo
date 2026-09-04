@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { Climate, seasonAt } from "../core/environment.js";
+import {
+  Climate,
+  seasonAt,
+  annualOffset,
+  heatBias,
+  seasonExtremity,
+  routeMeanTemperature,
+  travelTimeMultiplier,
+  isHostileTrek,
+} from "../core/environment.js";
 import { settings } from "../core/settings.js";
 
 const closeTo = (got, want) => assert.ok(Math.abs(got - want) < 1e-9);
@@ -71,4 +80,77 @@ test("climate.update sets a sane temperature on the member", () => {
   c.update(12345);
   assert.ok(Number.isFinite(c.temperature));
   assert.ok(Math.abs(c.temperature - c.calculateTemperature(12345)) < 1e-9);
+});
+
+test("annualOffset squares the year around mid-summer and mid-winter", () => {
+  const D = settings.hoursPerDay;
+  closeTo(annualOffset(D * 135), settings.annualAmplitude);
+  closeTo(annualOffset(D * 315), -settings.annualAmplitude);
+  closeTo(annualOffset(D * 45), 0);
+  closeTo(annualOffset(D * 225), 0);
+});
+
+test("seasonExtremity is 0 at the equinoxes and 1 at the solstices", () => {
+  const D = settings.hoursPerDay;
+  closeTo(seasonExtremity(D * 135), 1);
+  closeTo(seasonExtremity(D * 315), 1);
+  closeTo(seasonExtremity(D * 45), 0);
+  closeTo(seasonExtremity(D * 225), 0);
+});
+
+test("heatBias is +1 at mid-summer and -1 at mid-winter", () => {
+  const D = settings.hoursPerDay;
+  closeTo(heatBias(D * 135), 1);
+  closeTo(heatBias(D * 315), -1);
+  closeTo(heatBias(D * 45), 0);
+});
+
+test("routes without a climate default to a comfortable mean temperature", () => {
+  closeTo(routeMeanTemperature({}), settings.travelComfortTemp);
+  closeTo(routeMeanTemperature({ origin: { climate: { temperature: 20 } } }), settings.travelComfortTemp);
+});
+
+test("routeMeanTemperature averages its endpoints", () => {
+  const route = {
+    origin: { climate: { temperature: 10 } },
+    destination: { climate: { temperature: -20 } },
+  };
+  closeTo(routeMeanTemperature(route), -5);
+});
+
+test("travelTimeMultiplier is 1 in the comfort band and grows at both extremes", () => {
+  closeTo(travelTimeMultiplier(settings.travelComfortTemp), 1);
+  closeTo(
+    travelTimeMultiplier(settings.travelComfortTemp - settings.travelComfortBand),
+    1
+  );
+  closeTo(
+    travelTimeMultiplier(settings.travelComfortTemp + settings.travelComfortBand),
+    1
+  );
+  const cold = travelTimeMultiplier(
+    settings.travelComfortTemp - settings.travelComfortBand - 10
+  );
+  const hot = travelTimeMultiplier(
+    settings.travelComfortTemp + settings.travelComfortBand + 10
+  );
+  assert.ok(cold > 1);
+  assert.ok(hot > 1);
+  closeTo(
+    travelTimeMultiplier(settings.travelComfortTemp - settings.travelComfortBand - 100),
+    1 + settings.travelMaxSlowdown
+  );
+  closeTo(
+    travelTimeMultiplier(settings.travelComfortTemp + settings.travelComfortBand + 100),
+    1 + settings.travelMaxSlowdown
+  );
+});
+
+test("isHostileTrek flags routes at both temperature extremes", () => {
+  const cold = { origin: { climate: { temperature: -20 } }, destination: { climate: { temperature: -20 } } };
+  const hot = { origin: { climate: { temperature: 40 } }, destination: { climate: { temperature: 40 } } };
+  const mild = { origin: { climate: { temperature: 20 } }, destination: { climate: { temperature: 20 } } };
+  assert.equal(isHostileTrek(cold), true);
+  assert.equal(isHostileTrek(hot), true);
+  assert.equal(isHostileTrek(mild), false);
 });

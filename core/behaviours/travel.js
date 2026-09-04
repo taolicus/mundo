@@ -1,6 +1,7 @@
 import { randomIntBetween } from "../../core/utils.js";
 import { settings } from "../../core/settings.js";
 import { events } from "../../core/events.js";
+import { routeMeanTemperature, travelTimeMultiplier } from "../../core/environment.js";
 
 export const travel = {
   id: "travel",
@@ -15,7 +16,7 @@ export const travel = {
     dweller.place.population = dweller.place.population.filter((h) => h !== dweller);
     route.addTraveler(dweller);
     dweller.place = null;
-    dweller.totalTravelTime = route.travelTime;
+    dweller.totalTravelTime = this.tripTime(dweller, route);
     dweller.elapsedTravelTime = 0;
     dweller.travelProgress = 0;
     events.emit("travel", {
@@ -25,6 +26,13 @@ export const travel = {
       from: route.origin.name,
       to: route.destination.name,
     });
+  },
+
+  tripTime(dweller, route) {
+    const base = route.distance / settings.travelSpeedDivisor;
+    const tempMult = travelTimeMultiplier(routeMeanTemperature(route));
+    const speed = Math.max(settings.ageMobilityFloor, dweller.mobility());
+    return Math.max(1, Math.round((base * tempMult) / speed));
   },
 
   step(dweller, t) {

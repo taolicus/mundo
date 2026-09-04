@@ -7,6 +7,12 @@ import {
   chance,
 } from "../core/utils.js";
 import { events } from "../core/events.js";
+import {
+  heatBias,
+  seasonExtremity,
+  routeMeanTemperature,
+  isHostileTrek,
+} from "../core/environment.js";
 import { travel as travelBehaviour } from "../core/behaviours/travel.js";
 import { tend as tendBehaviour } from "../core/behaviours/tend.js";
 
@@ -133,15 +139,16 @@ class SurvivalNeed extends Need {
     return "seeking food";
   }
 
-  behaviour(dweller) {
+  behaviour(dweller, t = 0) {
     if (!dweller.place || !this.shortageAnnounced) return null;
     if (this.hasEdibleFood(dweller)) return null;
     const foodPlaces = this.knowFoodPlaces(dweller);
     if (foodPlaces.size === 0) return null;
 
     const reason = this.seekReason(dweller);
+    const bias = heatBias(t);
     let bestRoute = null;
-    let bestDistance = Infinity;
+    let bestScore = Infinity;
     for (const route of dweller.place.routes) {
       if (foodPlaces.has(route.destination)) {
         return { behaviour: "travel", route, reason, need: this };
@@ -151,8 +158,10 @@ class SurvivalNeed extends Need {
           route.destination.x - foodPlace.x,
           route.destination.y - foodPlace.y
         );
-        if (dist < bestDistance) {
-          bestDistance = dist;
+        const score =
+          dist + bias * settings.climeWeight * routeMeanTemperature(route);
+        if (score < bestScore) {
+          bestScore = score;
           bestRoute = route;
         }
       }
@@ -169,20 +178,23 @@ class ExplorationNeed extends PeriodicNeed {
     super("exploration", frequency);
   }
 
-  weight(dweller) {
-    return this.urgency(dweller) * settings.explorationWeight;
+  weight(dweller, t = 0) {
+    return this.urgency(dweller) * settings.explorationWeight * dweller.mobility();
   }
 
-  behaviour(dweller) {
+  behaviour(dweller, t = 0) {
+    if (dweller.age / dweller.maxAge > settings.explorationAgeCeil) return null;
     if (this.urgency(dweller) < settings.explorationThreshold) return null;
     if (!dweller.place || dweller.place.routes.length === 0) return null;
-    const unvisited = dweller.place.routes.filter(
+    const open = dweller.place.routes.filter((route) => !isHostileTrek(route));
+    if (open.length === 0) return null;
+    const unvisited = open.filter(
       (route) => !dweller.visitedPlaceNames.has(route.destination.name)
     );
     const route =
       unvisited.length > 0
         ? randomElement(unvisited)
-        : randomElement(dweller.place.routes);
+        : randomElement(open);
     return { behaviour: "travel", route, reason: "out of curiosity", need: this };
   }
 }
@@ -192,15 +204,33 @@ class GatherNeed extends PeriodicNeed {
     super("gather", frequency);
   }
 
-  weight(dweller) {
-    return this.urgency(dweller) * settings.gatherWeight;
+  weight(dweller, t = 0) {
+    return this.urgency(dweller) * settings.gatherWeight * dweller.mobility();
   }
 
-  behaviour(dweller) {
+  behaviour(dweller, t = 0) {
     if (this.urgency(dweller) < settings.behaviourThreshold) return null;
     if (!dweller.place || dweller.place.routes.length === 0) return null;
-    const target = this.findGatherTarget(dweller);
-    if (!target) return null;
+    const candidates = this.findGatherTargets(dweller).filter(
+      (c) => !isHostileTrek(c.route)
+    );
+    if (candidates.length === 0) return null;
+    const bias = heatBias(t);
+    let target;
+    if (Math.abs(bias) >= settings.extremityThreshold) {
+      const wantWarmth = bias < 0;
+      target = candidates.reduce((a, b) =>
+        wantWarmth
+          ? routeMeanTemperature(b.route) > routeMeanTemperature(a.route)
+            ? b
+            : a
+          : routeMeanTemperature(b.route) < routeMeanTemperature(a.route)
+            ? b
+            : a
+      );
+    } else {
+      target = randomElement(candidates);
+    }
     return {
       behaviour: "travel",
       route: target.route,
@@ -209,7 +239,7 @@ class GatherNeed extends PeriodicNeed {
     };
   }
 
-  findGatherTarget(dweller) {
+  findGatherTargets(dweller) {
     const localNames = new Set(dweller.place.resources.map((r) => r.name));
     const candidates = [];
     for (const route of dweller.place.routes) {
@@ -222,8 +252,7 @@ class GatherNeed extends PeriodicNeed {
       );
       if (resource) candidates.push({ route, resource });
     }
-    if (candidates.length === 0) return null;
-    return randomElement(candidates);
+    return candidates;
   }
 }
 
@@ -254,8 +283,10 @@ class OriginNeed extends PeriodicNeed {
     super("homing", frequency);
   }
 
-  weight(dweller) {
-    return this.urgency(dweller) * settings.homeWeight;
+  weight(dweller, t = 0) {
+    const extremityPull =
+      (1 + settings.homingExtremityBoost * seasonExtremity(t)) * dweller.mobility();
+    return this.urgency(dweller) * settings.homeWeight * extremityPull;
   }
 
   behaviour(dweller) {
@@ -432,6 +463,24 @@ export class Dweller {
     }
   }
 
+  lifeFrac() {
+    return Math.max(0, Math.min(1, this.age / Math.max(1, this.maxAge)));
+  }
+
+  mobility() {
+    return Math.max(
+      settings.ageMobilityFloor,
+      1 - this.lifeFrac() * settings.ageMobilityLoss
+    );
+  }
+
+  naturalDeathChance() {
+    return (
+      Math.pow(this.lifeFrac(), settings.agingDeathCurve) *
+      (settings.agingDeathRate / settings.ticksPerYear)
+    );
+  }
+
   die(cause, t) {
     if (!this.alive) return;
     this.alive = false;
@@ -471,6 +520,10 @@ export class Dweller {
       this.die("old age", t);
       return;
     }
+    if (Math.random() < this.naturalDeathChance()) {
+      this.die("old age", t);
+      return;
+    }
 
     this.needs.forEach((need) => need.tick(this, t));
 
@@ -494,9 +547,9 @@ export class Dweller {
     const candidates = [];
     for (const need of this.needs) {
       if (settling && need.type !== "survival") continue;
-      const intent = need.behaviour(this);
+      const intent = need.behaviour(this, t);
       if (!intent) continue;
-      const weight = need.weight(this);
+      const weight = need.weight(this, t);
       if (weight <= 0) continue;
       candidates.push([intent, weight]);
     }

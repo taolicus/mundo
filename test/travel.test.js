@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { Route } from "../entities/region.js";
 import { Dweller } from "../entities/dweller.js";
 import { travel } from "../core/behaviours/travel.js";
-import { calculateDistance } from "../core/utils.js";
 import { settings } from "../core/settings.js";
 
 function makePlace(name, resources, x, y) {
@@ -38,7 +37,7 @@ test("travel start moves a dweller onto the route", () => {
   assert.equal(a.population.includes(d), false);
   assert.ok(ab.travelers.includes(d));
   assert.equal(d.activity, "to gather r2");
-  assert.equal(d.totalTravelTime, Math.max(1, Math.floor(calculateDistance(a, b) / settings.travelSpeedDivisor)));
+  assert.equal(d.totalTravelTime, travel.tripTime(d, ab));
 });
 
 test("travel step removes a dweller from the route and settles it on arrival", () => {
