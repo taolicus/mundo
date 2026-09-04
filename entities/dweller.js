@@ -4,15 +4,95 @@ import {
   randomElement,
   log,
 } from "../core/utils.js";
+import { travel as travelBehaviour } from "../core/behaviours/travel.js";
 
 class Need {
-  constructor(type, resource = null, amount = 0, frequency = 0) {
+  constructor(type) {
     this.type = type;
+    this.activity = "resting";
+  }
+
+  tick(dweller, t) {}
+
+  behaviour(dweller) {
+    return null;
+  }
+}
+
+class SurvivalNeed extends Need {
+  constructor(resource, amount, frequency) {
+    super("survival");
     this.resource = resource;
     this.amount = amount;
-    this.lastConsumption = 0;
     this.frequency = frequency;
+    this.lastConsumption = randomIntBetween(0, frequency);
     this.shortageAnnounced = false;
+  }
+
+  tick(dweller, t) {
+    if (!dweller.place) return;
+    this.lastConsumption++;
+    if (this.lastConsumption <= this.frequency) return;
+
+    const name = this.resource.name;
+    const available = dweller.place.resources.find(
+      (r) => r.name === name && r.amount > 0
+    );
+
+    if (available) {
+      dweller.place.consumeResource(available, this.amount);
+      this.lastConsumption = 0;
+      this.activity = "eating";
+      if (this.shortageAnnounced) {
+        log(`${dweller.place.name} ${name} is available again`);
+        this.shortageAnnounced = false;
+      }
+      log(`${dweller.name} consumed ${this.amount} units of ${name}`);
+    } else {
+      dweller.health -= settings.unmetNeedDamage;
+      this.lastConsumption = 0;
+      this.activity = "hungry";
+      if (!this.shortageAnnounced) {
+        log(`${dweller.place.name} needs ${name} but there is not enough`);
+        this.shortageAnnounced = true;
+      }
+    }
+  }
+
+  behaviour(dweller) {
+    if (!dweller.place || !this.shortageAnnounced) return null;
+    const name = this.resource.name;
+    if (!dweller.suppliers.has(name)) return null;
+    const suppliers = dweller.suppliers.get(name);
+    for (const route of dweller.place.routes) {
+      if (suppliers.has(route.destination) && route.destination !== dweller.place) {
+        return { behaviour: "travel", route, reason: `seeking ${name}` };
+      }
+    }
+    return null;
+  }
+}
+
+class ExplorationNeed extends Need {
+  constructor(frequency) {
+    super("exploration");
+    this.frequency = frequency;
+    this.lastExplored = 0;
+  }
+
+  tick(dweller, t) {
+    this.lastExplored++;
+  }
+
+  behaviour(dweller) {
+    if (this.lastExplored < this.frequency) return null;
+    if (!dweller.place || dweller.place.routes.length === 0) return null;
+    const unvisited = dweller.place.routes.filter(
+      (route) => !dweller.visitedPlaceNames.has(route.destination.name)
+    );
+    const route = unvisited.length > 0 ? randomElement(unvisited) : randomElement(dweller.place.routes);
+    this.lastExplored = 0;
+    return { behaviour: "travel", route, reason: "out of curiosity" };
   }
 }
 
@@ -76,71 +156,23 @@ export class Dweller {
       available = available.filter(
         (r) => r !== selected
       );
-      const need = new Need(
-        "survival",
-        selected,
-        randomIntBetween(settings.needAmountMin, settings.needAmountMax),
-        randomIntBetween(settings.needFrequencyMin, settings.needFrequencyMax)
+      this.needs.push(
+        new SurvivalNeed(
+          selected,
+          randomIntBetween(settings.needAmountMin, settings.needAmountMax),
+          randomIntBetween(settings.needFrequencyMin, settings.needFrequencyMax)
+        )
       );
-      this.needs.push(need);
     }
 
     this.needs.push(
-      new Need(
-        "exploration",
-        null,
-        0,
+      new ExplorationNeed(
         randomIntBetween(
           settings.explorationFrequencyMin,
           settings.explorationFrequencyMax
         )
       )
     );
-  }
-
-  canSatisfyLocally(need) {
-    if (!need.resource) return true;
-    return (
-      need.resource.amount > 0 ||
-      this.place.resources.some(
-        (r) => r.name === need.resource.name && r.amount > 0
-      )
-    );
-  }
-
-  pickRouteByNeed() {
-    if (!this.place || !this.place.routes || this.place.routes.length === 0) return null;
-
-    const localSupplies = new Set(
-      this.place.resources.filter((r) => r.amount > 0).map((r) => r.name)
-    );
-
-    for (const need of this.needs) {
-      if (need.type !== "survival") continue;
-      const name = need.resource.name;
-      if (localSupplies.has(name)) continue;
-      if (!this.suppliers.has(name)) continue;
-
-      const suppliers = this.suppliers.get(name);
-      for (const route of this.place.routes) {
-        if (suppliers.has(route.destination) && route.destination !== this.place) {
-          return route;
-        }
-      }
-    }
-    return null;
-  }
-
-  pickExplorationRoute() {
-    if (!this.place || !this.place.routes || this.place.routes.length === 0) return null;
-
-    const unvisited = this.place.routes.filter(
-      (route) => !this.visitedPlaceNames.has(route.destination.name)
-    );
-    if (unvisited.length > 0) {
-      return randomElement(unvisited);
-    }
-    return randomElement(this.place.routes);
   }
 
   ageOneYear(t) {
@@ -165,8 +197,9 @@ export class Dweller {
     }
   }
 
-  startTravel(route) {
+  startTravel(route, reason) {
     this.route = route;
+    this.activity = reason;
     this.place.habitants = this.place.habitants.filter((h) => h !== this);
     this.route.addTraveler(this);
     this.place = null;
@@ -174,7 +207,7 @@ export class Dweller {
     this.elapsedTravelTime = 0;
     this.travelProgress = 0;
     log(
-      `${this.name} started traveling from ${this.route.origin.name} to ${this.route.destination.name}`
+      `${this.name} left ${this.route.origin.name} to ${reason}`
     );
   }
 
@@ -189,9 +222,10 @@ export class Dweller {
       this.needs = [];
       this.generateNeeds();
       log(
-        `${this.name} arrived at ${this.route.destination.name} from ${this.route.origin.name}`
+        `${this.name} arrived in ${this.route.destination.name}`
       );
       this.route = null;
+      this.activity = "resting";
     }
   }
 
@@ -205,69 +239,43 @@ export class Dweller {
       return;
     }
 
-    if (this.place) {
-      this.needs.forEach((need) => {
-        if (need.type !== "survival") return;
-        need.lastConsumption++;
-        if (need.lastConsumption > need.frequency) {
-          const available = this.place.resources.find(
-            (r) => r.name === need.resource.name && r.amount > 0
-          );
-          if (available) {
-            this.place.consumeResource(available, need.amount);
-            need.lastConsumption = 0;
-            if (need.shortageAnnounced) {
-              log(
-                `${this.place.name} ${need.resource.name} is available again`
-              );
-              need.shortageAnnounced = false;
-            }
-            log(
-              `${this.name} consumed ${need.amount} units of ${need.resource.name}`
-            );
-          } else {
-            this.health -= settings.unmetNeedDamage;
-            need.lastConsumption = 0;
-            if (!need.shortageAnnounced) {
-              log(
-                `${this.place.name} needs ${need.resource.name} but there is not enough`
-              );
-              need.shortageAnnounced = true;
-            }
-          }
-        }
-      });
+    this.needs.forEach((need) => need.tick(this, t));
 
-      if (this.health <= 0) {
-        this.die("malnutrition");
-        return;
-      }
+    if (this.health <= 0) {
+      this.die("malnutrition");
+      return;
     }
 
     if (this.route) {
       this.travel();
     } else if (this.place) {
-      const routeByNeed = this.pickRouteByNeed();
-      if (routeByNeed) {
-        this.startTravel(routeByNeed);
-      } else if (this.wantsToExplore()) {
-        const exploreRoute = this.pickExplorationRoute();
-        if (exploreRoute) {
-          this.startTravel(exploreRoute);
-        }
-      }
+      this.decideBehaviour();
     }
   }
 
-  wantsToExplore() {
-    let ready = false;
-    this.needs.forEach((need) => {
-      if (need.type !== "exploration") return;
-      need.lastConsumption++;
-      if (need.lastConsumption > need.frequency) {
-        ready = true;
+  decideBehaviour() {
+    let survival = null;
+    let fallback = null;
+
+    for (const need of this.needs) {
+      const intent = need.behaviour(this);
+      if (!intent) continue;
+      if (need.type === "survival" && !survival) {
+        survival = intent;
+      } else if (!fallback) {
+        fallback = intent;
       }
-    });
-    return ready;
+    }
+
+    const chosen = survival || fallback;
+    if (!chosen) return;
+
+    switch (chosen.behaviour) {
+      case "travel":
+        travelBehaviour.perform(this, chosen);
+        break;
+      default:
+        break;
+    }
   }
 }
