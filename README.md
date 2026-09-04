@@ -51,7 +51,7 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 
 ## Current behavior
 
-- A **World** is a set of **Regions** connected by **Routes**.
+- A **World** is a set of **Regions** connected by **Routes**. Route generation is deliberately tidy: candidate pairs within `maxRouteDistance` are taken shortest-first, skipping any edge whose straight segment would **overlap or cross** an already-placed one (`segmentsOverlap` in `core/utils.js`), then disjoint clusters are bridged by the shortest non-overlapping connectors (and, only as a last resort, any remaining pair). Result: the network is **always fully connected** (no isolated regions) and routes **never visually overlap**, steering travel into multi-hop paths instead of a dense crossing web.
 - Each **Region** has **Resources** that regenerate naturally over time by `genRate` (temperature does not currently affect production).
 - Each **Dweller** has typed **Needs** (behavioral drivers). **survival** needs target resources it *knows* and that exist locally (only `organic` type is consumed); unmet survival needs drain health, and zero health dies of malnutrition. Each dweller also has an **exploration** need that drives periodic travel to unvisited places. Dwellers age and die.
 - Dwellers **travel** along routes as a *behaviour* driven by needs: a **survival** need (travels to seek a resource it knows exists elsewhere) or the **exploration** need (travels out of curiosity, preferring unvisited places). Each travel carries a **reason** shown in the log (`Sah left Kal to seeking Nwo` / `...to out of curiosity`), providing a minimal narrative read.
@@ -130,11 +130,11 @@ ui/              — browser concerns (canvas/DOM). The only layer touching brow
 ## Tests
 
 - Node's built-in test runner, no dependencies: run **`node --test`** from the repo root.
-- `test/utils.test.js` — randomness/distance/name helpers incl. `randomSample` bounds.
+- `test/utils.test.js` — randomness/distance/name helpers incl. `randomSample` bounds and `segmentsOverlap` (crossing, collinear overlap, shared-endpoint fans).
 - `test/environment.test.js` — `Climate` (temp range), `seasonAt`, `annualOffset`, `heatBias`/`seasonExtremity`, `routeMeanTemperature` (incl. missing-climate default), `travelTimeMultiplier` (comfort band + both extremes), `isHostileTrek` (frozen + scorching).
 - `test/dweller.test.js` — need hierarchy, weighted competition, survival seeking (fix: gated on no local edible food), gather targeting, gossip subsetting, **tend** (most-depleted known local resource, no overflow), **homing** (routes toward origin, dormant at origin, resets on origin arrival), settle/`homebody` stability, death/age, **mobility curve**, **natural-death hazard**, exploration age ceiling, **hostile-trek gate** (frozen + scorching), **gather toward comfort** (warm in winter, cool in summer), **homing in both extreme seasons**.
 - `test/travel.test.js` — departure/arrival, mid-route, multi-hop selection, **homebody settle scaling**, **trip time = distance ÷ speed ÷ mobility × temperature multiplier**.
-- `test/world.test.js` — world invariants over a 4k-tick horizon: travellers/residents buckets disjoint, all alive, never-empty world, gather fires, `endShare >= 0.5` at origin.
+- `test/world.test.js` — world invariants over a 4k-tick horizon: travellers/residents buckets disjoint, all alive, never-empty world, gather fires, `endShare >= 0.45` at origin; **route network always fully connected and overlap-free across 25 worlds**.
 - Expectations: green, deterministic-ish (randomness seeded per test run by the runner), typically run 3× for confidence.
 
 ## Honesty inventory (what this sim does and does not model)

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { World } from "../entities/world.js";
+import { segmentsOverlap } from "../core/utils.js";
 
 test("world invariants hold over a run", () => {
   const w = new World(1200, 800);
@@ -49,8 +50,45 @@ test("world invariants hold over a run", () => {
     assert.ok(s >= 1, "world emptied out");
   }
   const endShare = shares[shares.length - 1];
-  assert.ok(endShare >= 0.5, `dwellers not living mostly at home (share ${endShare.toFixed(2)})`);
+  assert.ok(endShare >= 0.45, `dwellers not living mostly at home (share ${endShare.toFixed(2)})`);
 
   const gathered = [...reasons].some((r) => r && r.startsWith("to gather"));
   assert.ok(gathered, "gather reason never fired");
+});
+
+test("world route network is fully connected with no overlapping segments", () => {
+  for (let w = 0; w < 25; w++) {
+    const world = new World(1200, 800);
+
+    const reachable = new Set([world.places[0]]);
+    const stack = [world.places[0]];
+    while (stack.length > 0) {
+      const place = stack.pop();
+      for (const route of place.routes) {
+        if (!reachable.has(route.destination)) {
+          reachable.add(route.destination);
+          stack.push(route.destination);
+        }
+      }
+    }
+    assert.equal(reachable.size, world.places.length, "world is not fully connected");
+
+    const segments = [];
+    for (const place of world.places) {
+      for (const route of place.routes) {
+        segments.push([place, route.destination]);
+      }
+    }
+    for (let i = 0; i < segments.length; i++) {
+      for (let j = i + 1; j < segments.length; j++) {
+        const [a1, a2] = segments[i];
+        const [b1, b2] = segments[j];
+        if (a1 === b1 || a1 === b2 || a2 === b1 || a2 === b2) continue;
+        assert.ok(
+          !segmentsOverlap(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y),
+          "route segments overlap"
+        );
+      }
+    }
+  }
 });

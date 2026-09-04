@@ -3,6 +3,7 @@ import {
   randomIntBetween,
   generateName,
   calculateDistance,
+  segmentsOverlap,
 } from "../core/utils.js";
 import { Region, Route } from "./region.js";
 import { populatePlaces } from "./population.js";
@@ -19,14 +20,61 @@ export class World {
   }
 
   generateRoutes() {
-    for (let i = 0; i < this.places.length; i++) {
-      for (let j = i + 1; j < this.places.length; j++) {
-        const dist = calculateDistance(this.places[i], this.places[j]);
+    const places = this.places;
+    const candidates = [];
+    for (let i = 0; i < places.length; i++) {
+      for (let j = i + 1; j < places.length; j++) {
+        const dist = calculateDistance(places[i], places[j]);
         if (dist <= settings.maxRouteDistance) {
-          this.places[i].routes.push(new Route(this.places[i], this.places[j]));
-          this.places[j].routes.push(new Route(this.places[j], this.places[i]));
+          candidates.push([i, j, dist]);
         }
       }
+    }
+    candidates.sort((a, b) => a[2] - b[2]);
+
+    const accepted = [];
+    const overlaps = (i, j) =>
+      accepted.some(([a, b]) =>
+        segmentsOverlap(
+          places[a].x, places[a].y, places[b].x, places[b].y,
+          places[i].x, places[i].y, places[j].x, places[j].y
+        )
+      );
+    for (const [i, j] of candidates) {
+      if (overlaps(i, j)) continue;
+      accepted.push([i, j]);
+    }
+
+    const parent = places.map((_, idx) => idx);
+    const find = (x) => {
+      while (parent[x] !== x) {
+        parent[x] = parent[parent[x]];
+        x = parent[x];
+      }
+      return x;
+    };
+    const union = (a, b) => {
+      parent[find(a)] = find(b);
+    };
+    for (const [i, j] of accepted) union(i, j);
+
+    for (const [i, j] of candidates) {
+      if (find(i) === find(j)) continue;
+      if (overlaps(i, j)) continue;
+      accepted.push([i, j]);
+      union(i, j);
+    }
+    for (let i = 0; i < places.length; i++) {
+      for (let j = i + 1; j < places.length; j++) {
+        if (find(i) === find(j)) continue;
+        accepted.push([i, j]);
+        union(i, j);
+      }
+    }
+
+    for (const [i, j] of accepted) {
+      places[i].routes.push(new Route(places[i], places[j]));
+      places[j].routes.push(new Route(places[j], places[i]));
     }
   }
 

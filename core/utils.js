@@ -56,3 +56,35 @@ export function weightedPick(entries) {
 export function chance(pct) {
   return Math.random() < pct;
 }
+
+const EPS = 1e-9;
+
+function orientation(ax, ay, bx, by, cx, cy) {
+  const v = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  if (Math.abs(v) < EPS) return 0;
+  return v > 0 ? 1 : -1;
+}
+
+export function segmentsOverlap(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const o1 = orientation(x1, y1, x2, y2, x3, y3);
+  const o2 = orientation(x1, y1, x2, y2, x4, y4);
+  const o3 = orientation(x3, y3, x4, y4, x1, y1);
+  const o4 = orientation(x3, y3, x4, y4, x2, y2);
+
+  if (o1 * o2 < 0 && o3 * o4 < 0) {
+    return true;
+  }
+
+  if (o1 === 0 && o2 === 0 && o3 === 0 && o4 === 0) {
+    const horizontal = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
+    const pts1 = horizontal
+      ? [Math.min(x1, x2), Math.max(x1, x2)]
+      : [Math.min(y1, y2), Math.max(y1, y2)];
+    const pts2 = horizontal
+      ? [Math.min(x3, x4), Math.max(x3, x4)]
+      : [Math.min(y3, y4), Math.max(y3, y4)];
+    return Math.min(pts1[1], pts2[1]) - Math.max(pts1[0], pts2[0]) > EPS;
+  }
+
+  return false;
+}

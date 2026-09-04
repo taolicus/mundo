@@ -10,6 +10,7 @@ import {
   weightedPick,
   chance,
   generateName,
+  segmentsOverlap,
 } from "../core/utils.js";
 
 test("randomIntBetween stays within inclusive bounds", () => {
@@ -73,4 +74,23 @@ test("generateName produces a three-letter name (upper, lower, lower)", () => {
   for (let i = 0; i < 50; i++) {
     assert.match(generateName(), /^[A-Z][a-z]{2}$/);
   }
+});
+
+test("segmentsOverlap detects proper crossings", () => {
+  assert.equal(segmentsOverlap(0, 0, 10, 10, 0, 10, 10, 0), true);
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 5, 5, 15, 5), false);
+});
+
+test("segmentsOverlap detects collinear overlaps", () => {
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 4, 0, 9, 0), true);
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 12, 0, 18, 0), false);
+});
+
+test("segmentsOverlap allows edges that merely share an endpoint", () => {
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 0, 0, 0, 10), false);
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 10, 0, 10, 10), false);
+});
+
+test("segmentsOverlap treats collinear chains touching at one point as separate", () => {
+  assert.equal(segmentsOverlap(0, 0, 10, 0, 10, 0, 20, 0), false);
 });
